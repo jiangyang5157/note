@@ -1,16 +1,7 @@
 # Android
 
-## ListView & RecycleView
-https://blog.csdn.net/shu_lance/article/details/79566189
-
 ## MVC & MVP & MVVM
 https://www.jianshu.com/p/ffcb84dc4ebc
-
-## AsyncTask
-https://www.cnblogs.com/absfree/p/5357678.html
-
-## Pattern
-https://www.jianshu.com/p/1a9f571ad7c0
 
 ## ANR
 产生原因：
@@ -37,6 +28,13 @@ https://www.jianshu.com/p/1a9f571ad7c0
   - 如果在栈中已经有该Activity的实例，就重用该实例(会调用实例的 onNewIntent() )。重用时，会让该实例回到栈顶，因此在它上面的实例将会被移出栈。如果栈中不存在该实例，将会创建新的实例放入栈中。使用场景如浏览器的主界面。不管从多少个应用启动浏览器，只会启动主界面一次，其余情况都会走onNewIntent，并且会清空主界面上面的其他页面。
 - singleInstance 模式
   - 在一个新栈中创建该Activity的实例，并让多个应用共享该栈中的该Activity实例。一旦该模式的Activity实例已经存在于某个栈中，任何应用再激活该Activity时都会重用该栈中的实例( 会调用实例的 onNewIntent() )。其效果相当于多个应用共享一个应用，不管谁激活该 Activity 都会进入同一个应用中。使用场景如闹铃提醒，将闹铃提醒与闹铃设置分离。singleInstance不要用于中间页面，如果用于中间页面，跳转会有问题，比如：A -> B (singleInstance) -> C，完全退出后，在此启动，首先打开的是B。
+
+##  Activity 的启动模式
+- standard: 系统的默认模式，一次跳转即会生成一个新的实例。假设有一个activity命名为MainActivity，执行语句：
+startActivity(new Intent(MainActivity.this, MainActivity.class))后，MainActivity将跳转到另外一个MainActivity，也就是现在的Task栈里面有MainActivity的两个实例。按返回键后你会发现仍然是在MainActivity（第一个）里面。
+- singleTop: singleTop 跟standard 模式比较类似。如果已经有一个实例位于Activity栈的顶部时，就不产生新的实例，而只是调用Activity中的newInstance()方法。如果不位于栈顶，会产生一个新的实例。例：当MainActivity为 singleTop 模式时，执行跳转后栈里面依旧只有一个实例，如果现在按返回键程序将直接退出。
+- singleTask: singleTask模式和后面的singleInstance模式都是只创建一个实例的。在这种模式下，无论跳转的对象是不是位于栈顶的activity，程序都不会生成一个新的实例（当然前提是栈里面已经有这个实例）。这种模式相当有用，在以后的多activity开发中，经常会因为跳转的关系导致同个页面生成多个实例，这个在用户体验上始终有点不好，而如果你将对应的activity声明为 singleTask 模式，这种问题将不复存在。
+- singleInstance: 设置为 singleInstance 模式的 activity 将独占一个task（感觉task可以理解为进程），独占一个task的activity与其说是activity，倒不如说是一个应用，这个应用与其他activity是独立的，它有自己的上下文activity。
 
 ## java中==和equals和hashCode的区别
 - 基本数据类型的==比较的值相等. 
@@ -69,53 +67,29 @@ hashCode也是Object类的一个方法。返回一个离散的int型整数。在
 - Parcelable Android 序列化接口 效率高 使用麻烦 在内存中读写（AS有相关插件 一键生成所需方法） ，对象不能保存到磁盘中
 
 ## 5种方式存储数据
-
 - SharedPreferences
 - 文件存储数据
 - SQLite
 - 使用ContentProvider存储数据；
 - 网络存储数据
 
-## Padding 和 Margin
-
-- padding指内边距，表示组件内部元素距离组件边框的距离。
-- margin指外边距，表示组件与组件之间的距离。
-
-## AIDL
-
-AIDL(Android接口描述语言)是一种接口描述语言; 编译器可以通过aidl文件生成一段代码，通过预先定义的接口达到两个进程内部通信进程的目的。如果需要在一个Activity中, 访问另一个Service中的某个对象, 需要先将对象转化成AIDL可识别的参数(可能是多个参数), 然后使用AIDL来传递这些参数, 在消息的接收端, 使用这些参数组装成自己需要的对象。AIDL是基于接口的，但它是轻量级的。它使用代理类在客户端和实现层间传递值.。
-
 ## Service
-
 - 通过startService启动Service：onCreate、onStartCommand、onDestory。
 - 通过bindService绑定Service：onCreate、onBind、onUnbind、onDestory。
 
 ## 如何一次性退出所有打开的Activity
-
 编写一个Activity作为入口，当需要关闭程序时，可以利用Activity的SingleTop模式跳转该Activity，它上面的所有Activity都会被销毁掉。然后再将该Activity关闭。或者再跳转时，设置intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);这样也能将上面的Activity销毁掉。
 
 ## ContentProvide
-
 使用ContentProvider 可以将数据共享给其他应用，让除本应用之外的应用也可以访问本应用的数据。它的底层是用SQLite 数据库实现的，所以其对数据做的各种操作都是以Sql实现，只是在上层提供的是Uri。
 
 ## 显式intent和隐式intent的区别是什么
-
 Android基本的设计理念是鼓励减少组件间的耦合，因此Android提供了Intent (意图) ，Intent提供了一种通用的消息系统，它允许在你的应用程序与其它的应用程序间传递Intent来执行动作和产生事件。使用Intent可以激活Android应用的三个核心组件：活动、服务和广播接收器。作为一个完整的消息传递机制，Intent不仅需要发送端，还需要接收端。
 - 显式Intent定义：对于明确指出了目标组件名称的Intent，我们称之为显式Intent。
 - 隐式Intent定义：对于没有明确指出目标组件名称的Intent，则称之为隐式Intent。
 - 说明：Android系统使用IntentFilter 来寻找与隐式Intent相关的对象。
 
-## 横竖屏切换时候 activity 的生命周期
-
-- 不设置Activity的android:configChanges时
-  - 切屏会重新调用各个生命周期,切横屏时会执行一次,切竖屏时会执行两次.
-- 设置Activity的android:configChanges="orientation"时
-  - 切屏还是会重新调用各个生命周期,切横、竖屏时只会执行一次.
-- 设置Activity的android:configChanges="orientation|keyboardHidden"时
-  - 切屏不会重新调用各个生命周期,只会执行onConfigurationChanged方法.
-
 ## Handler 机制的原理
-
 - android提供了 Handler 和 Looper 来满足线程间的通信。
 - Handler 先进先出原则。
 - Looper类用来管理特定线程内对象之间的消息交换(Message Exchange)。
@@ -123,11 +97,3 @@ Android基本的设计理念是鼓励减少组件间的耦合，因此Android提
 - Handler: 你可以构造Handler对象来与Looper沟通，以便push新消息到Message Queue里;或者接收Looper从Message Queue取出)所送来的消息。
 - Message Queue(消息队列):用来存放线程放入的消息。
 - 线程：UI thread 通常就是main thread，而Android启动程序时会替它建立一个Message Queue。
-
-##  Activity 的启动模式
-
-- standard: 系统的默认模式，一次跳转即会生成一个新的实例。假设有一个activity命名为MainActivity，执行语句：
-startActivity(new Intent(MainActivity.this, MainActivity.class))后，MainActivity将跳转到另外一个MainActivity，也就是现在的Task栈里面有MainActivity的两个实例。按返回键后你会发现仍然是在MainActivity（第一个）里面。
-- singleTop: singleTop 跟standard 模式比较类似。如果已经有一个实例位于Activity栈的顶部时，就不产生新的实例，而只是调用Activity中的newInstance()方法。如果不位于栈顶，会产生一个新的实例。例：当MainActivity为 singleTop 模式时，执行跳转后栈里面依旧只有一个实例，如果现在按返回键程序将直接退出。
-- singleTask: singleTask模式和后面的singleInstance模式都是只创建一个实例的。在这种模式下，无论跳转的对象是不是位于栈顶的activity，程序都不会生成一个新的实例（当然前提是栈里面已经有这个实例）。这种模式相当有用，在以后的多activity开发中，经常会因为跳转的关系导致同个页面生成多个实例，这个在用户体验上始终有点不好，而如果你将对应的activity声明为 singleTask 模式，这种问题将不复存在。
-- singleInstance: 设置为 singleInstance 模式的 activity 将独占一个task（感觉task可以理解为进程），独占一个task的activity与其说是activity，倒不如说是一个应用，这个应用与其他activity是独立的，它有自己的上下文activity。
