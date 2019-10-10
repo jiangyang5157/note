@@ -26,5 +26,6 @@ Disadvantage
 - Memory leak
     - If a AsyncTask is a non-static inner class within Activity，then it will keep a reference of creator Activity. When the Activity destoryed before the Asynctack completed, the Activity reference will be kept in the memory. As a result, creator Activity won't be recycled by GC, and it leads to a memory leak.
 
-Activity OnConfiguration
-- EventBus post a AsyncTaskResultEvent(result)
+Activity OnConfiguration 
+- Solution 1
+    - EventBus post a AsyncTaskResultEvent(result)
