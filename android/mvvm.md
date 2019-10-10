@@ -61,6 +61,5 @@ Good:
 - ViewModel can be implemented independently
 
 Ugly:
-- Not suitable for super easy UI
-- The cost of building and maintaining ViewModel will be higher for a project that has huge UI states.
+- Not suitable for super easy UI: the cost of building and maintaining ViewModel will be higher for a project that has huge UI states.
 - Data binding process is not debug-able
