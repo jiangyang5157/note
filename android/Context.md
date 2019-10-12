@@ -6,4 +6,4 @@
     - Most of time, they can shared
     - Activity needs theme
     - Activity Context starts Activity, Dialog (except System Dialog)
-    - getApplicationContext() and getApplication() returns same object but different type
+    - `getApplicationContext()` and `getApplication()` returns same object but different type
