@@ -20,4 +20,8 @@
 
 ## Exit all active Activity(s)
 - Solution 1
-    - SingleTop Activity as an entrance, all of Activity(s) above it will be destroyed, then destroy the Activity. Or `intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)`
+    - API 16+: finishAffinity()
+- Solution 2
+    - SingleTop Activity as an entrance, and `intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)`, then destroy the Activity.
+- Solution 3
+    - SingleTask Activity as an entrance, all of Activity(s) above it will be destroyed, then destroy the Activity.

@@ -6,7 +6,6 @@
     - Sharedpreferences
 - Memory cache
 - Network source
-    - After downloaded, cache it into Local and Memory
 
 Process:
 - Load data from local cache into memory cache
@@ -22,7 +21,7 @@ Process:
 
 
 
-Decription:
-- ViewModel: Lifecycle.Transformations
+Decryption:
+- ViewModel: Lifecycle.Transformations.switchMap() / map()
 Encription
-- Repository: NetworkBoundResource
+- Repository: eg: NetworkBoundResource

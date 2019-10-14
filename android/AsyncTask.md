@@ -7,7 +7,7 @@ It is a light-weight asynchronous class (Params, Progress, Result).
 - Abstract Class
     - MainThread: `onPreExecute()`
     - ThreadPool: `doInBackground(Params... params)`
-    - publishProgress -> `onProgressUpdate()`
+    - MainThread: publishProgress -> `onProgressUpdate()`
     - MainThread: `onProgressUpdate(Progress... values)`
     - MainThread: `onPostExecute(Result result)`
     - MainThread: `onCancelled()`
