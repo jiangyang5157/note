@@ -1,8 +1,5 @@
 # Decouple
 
-- Take advantage of inheritance and polymorphism
-    - A variable declared in the form of a parent class, assigned to any child class that inherits from this parent class does not affect the execution of the program.
-
 SOLID:
 - S: The Single Responsibility Principle (SRP)
     - A class should have only one reason to change
@@ -37,3 +34,5 @@ SOLID:
 Others:
 - Use interfaces for describing relationship of classes
 - Class should know as less as possible of the other classes it calls
+- Take advantage of inheritance and polymorphism
+    - A variable declared in the form of a parent class, assigned to any child class that inherits from this parent class does not affect the execution of the program.
