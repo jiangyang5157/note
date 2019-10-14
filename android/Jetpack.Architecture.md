@@ -5,9 +5,8 @@
         - Repository
             - Model #Room
                 - SQLite
-            - Remote Data Source
-                - Retrofit
-                    - Webservice
+            - Remote Data Source #Retrofit
+                - Webservice
 
     :
     - Separation Of Concerns
