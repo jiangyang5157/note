@@ -1,0 +1,24 @@
+# ================================================================
+macOS: https://www.tensorflow.org/install/pip?lang=python3
+
+$ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+$ export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+$ brew update
+$ brew install python  # Python 3
+$ sudo pip3 install -U virtualenv  # system-wide install
+$ virtualenv --system-site-packages -p python3 ./venv
+$ source ./venv/bin/activate  # sh, bash, ksh, or zsh
+(venv) $ python3 -m pip install --upgrade pip
+(venv) $ python3 -m pip list
+(venv) $ deactivate
+
+    (venv) $ pip install --upgrade tensorflow
+    (venv) $ python -c "import tensorflow as tf;print(tf.reduce_sum(tf.random.normal([1000, 1000])))"
+Or,
+    $ pip3 install --user --upgrade tensorflow  # install in $HOME
+    $ python3 -c "import tensorflow as tf; print(tf.reduce_sum(tf.random.normal([1000, 1000])))"
+
+# ================================================================
+ML Concepts: https://developers.google.com/machine-learning/crash-course/ml-intro
+
+# ================================================================
