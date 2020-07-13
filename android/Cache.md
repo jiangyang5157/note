@@ -1,9 +1,12 @@
 # Cache
 
-- Local cache
-    - File
-    - Database
+- Local cache / Data Persistence
+    - Hard drive
     - Sharedpreferences
+    - Database / SQLite
+    - ContentProvider
+        - Implemented by SQLite, expose Uri
+        - Shared/Open data to other applications
 - Memory cache
 - Network source
 
@@ -18,7 +21,6 @@ Process:
         - Get data from local, then cache is into memory
     - If memory data and local data not exists
         - Download from network source, then cache it into local cache and memory cache
-
 
 
 Decryption:

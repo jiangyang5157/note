@@ -42,3 +42,5 @@ Most machine learning problems require a lot of hyperparameter tuning.  Unfortun
 
 Remember: the ideal combination of hyperparameters is data dependent, so you must always experiment and verify.
 
+## Generalization 
+It refers to your model's ability to adapt properly to new, previously unseen data, drawn from the same distribution as the one used to create the model.

@@ -20,7 +20,7 @@ Advantage
 - Easy update UI, instead of passing value to MainThread Handler.
 
 Disadvantage
-- AsyncTask doesn't bind with any component's lifecycle (eg: `cancel(boolean)` it when Activity/Fragment destory.
+- AsyncTask doesn't bind with any component's lifecycle (eg: `cancel(boolean)` when Activity/Fragment destory.
 - AsyncTask has to be created in MainThread.
 - `AsyncTask.execute()` has to be invoked in MainThread, and only call once.
 - Memory leak
@@ -28,7 +28,6 @@ Disadvantage
 - Not support stream data
 - Deep callback hell
 
-
-Activity OnConfiguration 
+When Activity OnConfiguration changed,
 - Solution 1
-    - EventBus post a `AsyncTaskResultEvent(result)`
+    - Post a `AsyncTaskResultEvent(result)` by EventBus
