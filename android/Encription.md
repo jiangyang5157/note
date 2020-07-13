@@ -28,7 +28,7 @@ RSA
     - (3) Android use PrivateKey to decrypt the data and send it to Server
         - eg: Work with Android FingerprintManager.authenticate
 - Scenarios 2:
-    - (1) Server create Keypare
+    - (1) Server create Keypair
     - (2) Server send PublicKey to Android
     - (3) Android use PublicKey to encrypt data
     - (4) Server use PrivateKey to decrypt data

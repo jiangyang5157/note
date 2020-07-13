@@ -1,4 +1,4 @@
-# AsyncTask
+# AsyncTask (deprecated in Android 11)
 
 It is a light-weight asynchronous class (Params, Progress, Result).
 - Threadpool: SerialExecutor + THREAD_POOL_EXECUTOR
