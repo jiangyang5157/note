@@ -6,7 +6,7 @@
     - Easy to learn
 - Extension
 - data/open class
-- Compatible with Jave
+- Compatible with Java
 - inline: func code will be copied into all called places.
     - Good: replace default push/pop func stack, save some runtime memory/performance
     - Bad: after compiled, code expended and takes more memory spaces
