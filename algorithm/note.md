@@ -434,7 +434,7 @@ func CombSort(arr []int) []int {
     - One-sided binary search: if we don't know the size of the array, we can test repeatedly at larger intervals (`A[1]`, `A[2]`, `A[4]`, `A[8]`, `A[16]`, `...`) until we find an item larger than our search term, and then narrow in using regular binary search. This results in `2*log(p)` (where `p` is the index we're after), regardless how large the array is. This is most useful when `p` is relatively close to our start position.
 - Binary search can be used to find the roots of continuous functions, assuming that we have two points where `f(x) > 0` and `f(x) < 0` (there are better algorithms which use interpolation to find the root faster, but binary search still works well).
 
-- There are 5 typical problems that are very suitable for binary search:
+- There are 5 typical problems that are very suitable for binary search (https://blog.csdn.net/liuchunming033/article/details/103420636):
   - Find an element equal to a given value in an ordered array without repeated data;
   - Find the element whose first value is equal to the given value in an ordered array with repeated data;
   - Find the element whose last value is equal to the given value in an ordered array with repeated data;
