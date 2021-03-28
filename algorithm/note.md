@@ -443,7 +443,7 @@ func BinarySearch(arr []int, find int) int {
 	}
 
 	for low <= high {
-		mid := (low + high) / 2
+		mid := low + (high - low) / 2
 		switch {
 		case arr[mid] < find:
 			low = mid + 1
