@@ -26,6 +26,11 @@ git reset --soft HEAD~2
 git reset --hard HEAD~2
 git push --force origin branch_name
 
+git reset --soft HEAD~2 && git commit -m "consume hive component"
+git reset --soft HEAD~11 && git commit -m "Decouple FwbHub layout"
+
+git reset --soft HEAD~3 && git commit -m "resolve git - move IFwbHubRepository to FwbHubRepository.kt"
+
 # Reset file
 
 git reset HEAD file_path
@@ -59,3 +64,9 @@ git ls-files -v|grep '^h'
 
 # Remove the file from the repository, but keep it on the filesystem
 git rm <file> --cached
+
+
+# Rename
+As long as you're just renaming a file, and not a folder, you can just use git mv:
+git mv -f yOuRfIlEnAmE yourfilename
+git mv -f IFwbHubRepository.kt IFwbHubRepository.kt
