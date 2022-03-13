@@ -26,8 +26,8 @@ git reset --soft HEAD~2
 git reset --hard HEAD~2
 git push --force origin branch_name
 
-git reset --soft HEAD~2 && git commit -m "consume hive component"
-git reset --soft HEAD~11 && git commit -m "Decouple FwbHub layout"
+git reset --soft HEAD~3 && git commit -m "refactor and opens"
+git reset --soft HEAD~11 && git commit -m "impl rect radio button"
 
 git reset --soft HEAD~3 && git commit -m "resolve git - move IFwbHubRepository to FwbHubRepository.kt"
 

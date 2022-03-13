@@ -1,3 +1,5 @@
+https://developers.google.com/machine-learning/crash-course/ml-intro
+
 # Supervised ML
 Combine input to produce useful predictions on never-before-seen data.
 
