@@ -65,8 +65,11 @@ git ls-files -v|grep '^h'
 # Remove the file from the repository, but keep it on the filesystem
 git rm <file> --cached
 
-
 # Rename
 As long as you're just renaming a file, and not a folder, you can just use git mv:
 git mv -f yOuRfIlEnAmE yourfilename
 git mv -f IFwbHubRepository.kt IFwbHubRepository.kt
+
+# Tag
+git tag -a release/22.05.0 -m "Production 22.05.0 (4001948)"
+git push origin release/22.05.0
