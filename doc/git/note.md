@@ -13,6 +13,7 @@ git log <--author=name>
 git log --grep="Something in the message"
 git log -S "Check for commit that adds this line"
 git log --since=2.months.ago --until=1.day.ago --author=andy -S "something" --all-match
+git log --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar) %C(bold blue)<%an>%Creset' --all
 git blame file_path
 git branch | grep "*branch_name*" | xargs <git command, eg: git branch -D>
 
@@ -26,10 +27,11 @@ git reset --soft HEAD~2
 git reset --hard HEAD~2
 git push --force origin branch_name
 
-git reset --soft HEAD~3 && git commit -m "refactor and opens"
+git reset --soft HEAD~5 && git commit -m "fix answers link crash"
+git reset --soft HEAD~4 && git commit -m "update and rename existing checkmarx sh to gen_osa_zip sh"
 git reset --soft HEAD~11 && git commit -m "impl rect radio button"
 
-git reset --soft HEAD~3 && git commit -m "resolve git - move IFwbHubRepository to FwbHubRepository.kt"
+git reset --soft HEAD~6 && git commit -m "add SpendTrackerSelectAccountFragment"
 
 # Reset file
 
@@ -73,3 +75,6 @@ git mv -f IFwbHubRepository.kt IFwbHubRepository.kt
 # Tag
 git tag -a release/22.05.0 -m "Production 22.05.0 (4001948)"
 git push origin release/22.05.0
+
+git tag -a 23.06.0 -m "Finishing release 23.06.0"
+git push origin 23.06.0
