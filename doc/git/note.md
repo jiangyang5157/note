@@ -75,6 +75,3 @@ git mv -f IFwbHubRepository.kt IFwbHubRepository.kt
 # Tag
 git tag -a release/22.05.0 -m "Production 22.05.0 (4001948)"
 git push origin release/22.05.0
-
-git tag -a 23.06.0 -m "Finishing release 23.06.0"
-git push origin 23.06.0
