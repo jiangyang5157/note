@@ -1,0 +1,454 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © jiangyang5157
+
+//@version=5
+indicator(title="TrendFilter", overlay=true, explicit_plot_zorder=false, max_lines_count=100, max_labels_count=500, max_bars_back=1000)
+
+// Common
+// ================================
+
+// Function to count the number of consecutive backwards bars where the source is under the target for the given lookback period
+barsOver(source, target, lookback) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] <= target[i] 
+            break
+        count += 1
+    count
+
+// Function to count the number of consecutive backwards bars where the source is under the target for the given lookback period
+barsUnder(source, target, lookback) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] >= target[i] 
+            break
+        count += 1
+    count
+
+// Function to check if the source is under the target for the given lookback period
+isOver(source, target, lookback = 1) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] > target[i]
+            count += 1
+    count == lookback
+
+// Function to check if the source is over the target for the given lookback period
+isUnder(source, target, lookback = 1) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] < target[i]
+            count += 1
+    count == lookback
+
+// Function to calculate the moving avg
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+// https://m2.material.io/design/color/the-color-system.html#tools-for-picking-colors
+colorTransparent = color.rgb(0, 0, 0, 100)
+
+colorWhite1 = color.rgb(245, 245, 245, 0)
+colorWhite2 = color.rgb(245, 245, 245, 20)
+colorWhite3 = color.rgb(245, 245, 245, 40)
+colorWhite4 = color.rgb(245, 245, 245, 70)
+colorWhite5 = color.rgb(245, 245, 245, 80)
+colorWhite6 = color.rgb(245, 245, 245, 90)
+
+colorBlack1 = color.rgb(33, 33, 33, 0)
+colorBlack2 = color.rgb(33, 33, 33, 20)
+colorBlack3 = color.rgb(33, 33, 33, 40)
+colorBlack4 = color.rgb(33, 33, 33, 70)
+colorBlack5 = color.rgb(33, 33, 33, 80)
+colorBlack6 = color.rgb(33, 33, 33, 90)
+
+colorRed1 = color.rgb(213, 0, 0, 0)
+colorRed2 = color.rgb(213, 0, 0, 20)
+colorRed3 = color.rgb(213, 0, 0, 40)
+colorRed4 = color.rgb(213, 0, 0, 70)
+colorRed5 = color.rgb(213, 0, 0, 80)
+colorRed6 = color.rgb(213, 0, 0, 90)
+
+colorBlue1 = color.rgb(41, 98, 255, 0)
+colorBlue2 = color.rgb(41, 98, 255, 20)
+colorBlue3 = color.rgb(41, 98, 255, 40)
+colorBlue4 = color.rgb(41, 98, 255, 70)
+colorBlue5 = color.rgb(41, 98, 255, 80)
+colorBlue6 = color.rgb(41, 98, 255, 90)
+
+colorGreen1 = color.rgb(0, 200, 83, 0)
+colorGreen2 = color.rgb(0, 200, 83, 20)
+colorGreen3 = color.rgb(0, 200, 83, 40)
+colorGreen4 = color.rgb(0, 200, 83, 70)
+colorGreen5 = color.rgb(0, 200, 83, 80)
+colorGreen6 = color.rgb(0, 200, 83, 90)
+
+colorYellow1 = color.rgb(255, 214, 0, 0)
+colorYellow2 = color.rgb(255, 214, 0, 20)
+colorYellow3 = color.rgb(255, 214, 0, 40)
+colorYellow4 = color.rgb(255, 214, 0, 70)
+colorYellow5 = color.rgb(255, 214, 0, 80)
+colorYellow6 = color.rgb(255, 214, 0, 90)
+
+colorOrange1 = color.rgb(255, 109, 0, 0)
+colorOrange2 = color.rgb(255, 109, 0, 20)
+colorOrange3 = color.rgb(255, 109, 0, 40)
+colorOrange4 = color.rgb(255, 109, 0, 70)
+colorOrange5 = color.rgb(255, 109, 0, 80)
+colorOrange6 = color.rgb(255, 109, 0, 90)
+
+colorCyan1 = color.rgb(0, 184, 212, 0)
+colorCyan2 = color.rgb(0, 184, 212, 20)
+colorCyan3 = color.rgb(0, 184, 212, 40)
+colorCyan4 = color.rgb(0, 184, 212, 70)
+colorCyan5 = color.rgb(0, 184, 212, 80)
+colorCyan6 = color.rgb(0, 184, 212, 90)
+
+colorPurple1 = color.rgb(170, 0, 255, 0)
+colorPurple2 = color.rgb(170, 0, 255, 20)
+colorPurple3 = color.rgb(170, 0, 255, 40)
+colorPurple4 = color.rgb(170, 0, 255, 70)
+colorPurple5 = color.rgb(170, 0, 255, 80)
+colorPurple6 = color.rgb(170, 0, 255, 90)
+
+colorBackground = #fff9e6
+
+lowPlot = plot(high, color=na, display=display.none, editable=false)
+highPlot = plot(low, color=na, display=display.none, editable=false)
+
+// EMA
+// ================================
+EMA_SETTINGS = "EMA Settings"
+
+emaSourceInput = input.source(title="EMA Source", defval=close, group=EMA_SETTINGS)
+emaShowLastInput = input.int(title="EMA Show Last Bars", defval=10000, minval=1, group=EMA_SETTINGS)
+
+ema1LengthInput = input.int(title="EMA 1 Length", defval=12, minval=1, group=EMA_SETTINGS)
+ema2LengthInput = input.int(title="EMA 2 Length", defval=21, minval=1, group=EMA_SETTINGS)
+ema3LengthInput = input.int(title="EMA 3 Length", defval=144, minval=1, group=EMA_SETTINGS)
+ema4LengthInput = input.int(title="EMA 4 Length", defval=169, minval=1, group=EMA_SETTINGS)
+ema5LengthInput = input.int(title="EMA 5 Length", defval=288, minval=1, group=EMA_SETTINGS)
+ema6LengthInput = input.int(title="EMA 6 Length", defval=338, minval=1, group=EMA_SETTINGS)
+ema7LengthInput = input.int(title="EMA 7 Length", defval=576, minval=1, group=EMA_SETTINGS)
+ema8LengthInput = input.int(title="EMA 8 Length", defval=676, minval=1, group=EMA_SETTINGS)
+
+ema1 = ta.ema(emaSourceInput, ema1LengthInput)
+ema2 = ta.ema(emaSourceInput, ema2LengthInput)
+ema3 = ta.ema(emaSourceInput, ema3LengthInput)
+ema4 = ta.ema(emaSourceInput, ema4LengthInput)
+ema5 = ta.ema(emaSourceInput, ema5LengthInput)
+ema6 = ta.ema(emaSourceInput, ema6LengthInput)
+ema7 = ta.ema(emaSourceInput, ema7LengthInput)
+ema8 = ta.ema(emaSourceInput, ema8LengthInput)
+ema1Color = colorRed4
+ema2Color = colorRed2
+ema3Color = colorBlue4
+ema4Color = colorBlue2
+ema5Color = colorOrange4
+ema6Color = colorOrange2
+ema7Color = colorBlack4
+ema8Color = colorBlack2
+
+plot(title="EMA 1", series=ema1, show_last=emaShowLastInput, linewidth=1, color=ema1Color)
+plot(title="EMA 2", series=ema2, show_last=emaShowLastInput, linewidth=2, color=ema2Color)
+plot(title="EMA 3", series=ema3, show_last=emaShowLastInput, linewidth=1, color=ema3Color)
+plot(title="EMA 4", series=ema4, show_last=emaShowLastInput, linewidth=2, color=ema4Color)
+plot(title="EMA 5", series=ema5, show_last=emaShowLastInput, linewidth=1, color=ema5Color)
+plot(title="EMA 6", series=ema6, show_last=emaShowLastInput, linewidth=2, color=ema6Color)
+plot(title="EMA 7", series=ema7, show_last=emaShowLastInput, linewidth=1, color=ema7Color)
+plot(title="EMA 8", series=ema8, show_last=emaShowLastInput, linewidth=2, color=ema8Color)
+
+color emaLabelTextColor = colorBlack1
+label.delete(label.new(text="                    EMA "+str.tostring(ema1LengthInput), x=bar_index, y=ema1, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=emaLabelTextColor, size=size.small)[1])
+label.delete(label.new(text="                    EMA "+str.tostring(ema2LengthInput), x=bar_index, y=ema2, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=emaLabelTextColor, size=size.small)[1])
+label.delete(label.new(text="                    EMA "+str.tostring(ema3LengthInput), x=bar_index, y=ema3, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=emaLabelTextColor, size=size.small)[1])
+label.delete(label.new(text="                    EMA "+str.tostring(ema4LengthInput), x=bar_index, y=ema4, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=emaLabelTextColor, size=size.small)[1])
+label.delete(label.new(text="                    EMA "+str.tostring(ema5LengthInput), x=bar_index, y=ema5, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=emaLabelTextColor, size=size.small)[1])
+label.delete(label.new(text="                    EMA "+str.tostring(ema6LengthInput), x=bar_index, y=ema6, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=emaLabelTextColor, size=size.small)[1])
+label.delete(label.new(text="                    EMA "+str.tostring(ema7LengthInput), x=bar_index, y=ema7, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=emaLabelTextColor, size=size.small)[1])
+label.delete(label.new(text="                    EMA "+str.tostring(ema8LengthInput), x=bar_index, y=ema8, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=emaLabelTextColor, size=size.small)[1])
+
+overEma1 = isOver(emaSourceInput, ema1)
+overEma2 = isOver(emaSourceInput, ema2)
+overEma3 = isOver(emaSourceInput, ema3)
+overEma4 = isOver(emaSourceInput, ema4)
+overEma5 = isOver(emaSourceInput, ema5)
+overEma6 = isOver(emaSourceInput, ema6)
+overEma7 = isOver(emaSourceInput, ema7)
+overEma8 = isOver(emaSourceInput, ema8)
+
+underEma1 = isUnder(emaSourceInput, ema1)
+underEma2 = isUnder(emaSourceInput, ema2)
+underEma3 = isUnder(emaSourceInput, ema3)
+underEma4 = isUnder(emaSourceInput, ema4)
+underEma5 = isUnder(emaSourceInput, ema5)
+underEma6 = isUnder(emaSourceInput, ema6)
+underEma7 = isUnder(emaSourceInput, ema7)
+underEma8 = isUnder(emaSourceInput, ema8)
+
+crossoverEma1 = ta.crossover(low, ema1)
+crossoverEma2 = ta.crossover(low, ema2)
+crossoverEma3 = ta.crossover(low, ema3)
+crossoverEma4 = ta.crossover(low, ema4)
+crossoverEma5 = ta.crossover(low, ema5)
+crossoverEma6 = ta.crossover(low, ema6)
+crossoverEma7 = ta.crossover(low, ema7)
+crossoverEma8 = ta.crossover(low, ema8)
+
+crossunderEma1 = ta.crossunder(high, ema1)
+crossunderEma2 = ta.crossunder(high, ema2)
+crossunderEma3 = ta.crossunder(high, ema3)
+crossunderEma4 = ta.crossunder(high, ema4)
+crossunderEma5 = ta.crossunder(high, ema5)
+crossunderEma6 = ta.crossunder(high, ema6)
+crossunderEma7 = ta.crossunder(high, ema7)
+crossunderEma8 = ta.crossunder(high, ema8)
+
+// Bollinger Bands
+// ================================
+BB_SETTINGS = "Bollinger Bands Settings"
+
+bbLength = input.int(defval=55, minval=1, title="BB Length", group = BB_SETTINGS)
+bbMaType = input.string("SMA", "BB MA Type", options = ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"], group = BB_SETTINGS)
+bbStdev = input.float(defval=2.0, minval=0.001, title="BB Std Dev", group = BB_SETTINGS)
+
+bbBasis = ma(close, bbLength, bbMaType)
+bbUpper = bbBasis + bbStdev * ta.stdev(close, bbLength)
+bbLower = bbBasis - bbStdev * ta.stdev(close, bbLength)
+
+bbUpperPlot = plot(bbUpper, color=na, display=display.none, editable=false)
+bbLowerPlot = plot(bbLower, color=na, display=display.none, editable=false)
+colorBbOverUpper = high > bbUpper ? colorGreen5 : na
+colorBbUnderLower = low < bbLower ? colorRed5 : na
+fill(title="BB Over Upper", plot1=bbUpperPlot, plot2=lowPlot, color=colorBbOverUpper)
+fill(title="BB Under Lower", plot1=bbLowerPlot, plot2=highPlot, color=colorBbUnderLower)
+
+// Donchian Channels
+// ================================
+DC_SETTINGS = "Donchian Channels Settings"
+
+dc1LengthInput = input.int(title="DC 1 Length", defval=8, minval=1, group=DC_SETTINGS)
+dc2LengthInput = input.int(title="DC 2 Length", defval=21, minval=1, group=DC_SETTINGS)
+
+dc1Upper =  ta.highest(dc1LengthInput)
+dc2Upper =  ta.highest(dc2LengthInput)
+dc1Lower =  ta.lowest(dc1LengthInput)
+dc2Lower =  ta.lowest(dc2LengthInput)
+dc1Basis =  math.avg(dc1Upper, dc1Lower)
+dc2Basis =  math.avg(dc2Upper, dc2Lower)
+
+crossoverDc1Basis = ta.crossover(low, dc1Basis)
+crossunderDc1Basis = ta.crossunder(high, dc1Basis)
+
+var crossoverDc1BasisEvent = false
+var crossunderDc1BasisEvent = false
+if (crossoverDc1Basis)
+	crossoverDc1BasisEvent := true
+	crossunderDc1BasisEvent := false
+if (crossunderDc1Basis)
+	crossunderDc1BasisEvent := true
+	crossoverDc1BasisEvent := false
+
+crossoverDc2Basis = ta.crossover(low, dc2Basis)
+crossunderDc2Basis = ta.crossunder(high, dc2Basis)
+
+var crossoverDc2BasisEvent = false
+var crossunderDc2BasisEvent = false
+if (crossoverDc2Basis)
+	crossoverDc2BasisEvent := true
+	crossunderDc2BasisEvent := false
+if (crossunderDc2Basis)
+	crossunderDc2BasisEvent := true
+	crossoverDc2BasisEvent := false
+
+plot(title="DC 1 Basis", series=dc1Basis, color=na, display=display.none, editable=false)
+plot(title="DC 2 Basis", series=dc2Basis, color=na, display=display.none, editable=false)
+
+// Keltner Channels
+// ================================
+KC_SETTINGS = "Keltner Channels Settings"
+
+// Input Parameters
+kcEmaThresholdInput = input.string(title="KC EMA Threshold", defval="EMA 2", options=["EMA 1", "EMA 2", "EMA 3", "EMA 4", "EMA 5", "EMA 6", "EMA 7", "EMA 8"], group=KC_SETTINGS)
+kcAtrLengthInput = input.int(title="ATR Length", defval=10, minval=1, group=KC_SETTINGS)
+kcMultiplierInput = input.float(title="ATR Multiplier", defval=2.0, minval=0.1, group=KC_SETTINGS)
+
+kcBasis = switch kcEmaThresholdInput
+	"EMA 1" => ema1
+	"EMA 2" => ema2
+	"EMA 3" => ema3
+	"EMA 4" => ema4
+	"EMA 5" => ema5
+	"EMA 6" => ema6
+	"EMA 7" => ema7
+	"EMA 8" => ema8
+    
+kcAtr = ta.atr(kcAtrLengthInput)
+kcUpperBand = kcBasis + (kcMultiplierInput * kcAtr)
+kcLowerBand = kcBasis - (kcMultiplierInput * kcAtr)
+
+// Zig Zags
+// ================================
+ZIG_ZAGS_SETTINGS = "Zig Zags Settings"
+
+import TradingView/ZigZag/7 as ZigZagLib 
+
+displayZigZags = input.bool(title="Display ZigZags", defval=true, group=ZIG_ZAGS_SETTINGS)
+
+var zigZag = ZigZagLib.newInstance(
+  ZigZagLib.Settings.new(
+      devThreshold=input.float(title="Price deviation for reversals (%)", tooltip="The minimum percentage deviation from a point before the ​ZigZag will change direction [0.00001, 100]", defval=5.0, minval=0.00001, maxval=100.0, step=0.5, group=ZIG_ZAGS_SETTINGS),
+      depth=input.int(title="Pivot legs", tooltip="The number of bars required for ​pivot detection.", defval=10, minval=2, group=ZIG_ZAGS_SETTINGS),
+      lineColor=input(title="Line color", defval=colorBlack4, group=ZIG_ZAGS_SETTINGS),
+      extendLast=false,
+      displayReversalPrice=true,
+      displayCumulativeVolume=false,
+      displayReversalPriceChange=false,
+      differencePriceMode="Absolute",
+      draw=true)
+ )
+
+for pivot in zigZag.pivots
+    if pivot.isHigh
+        pivot.lb.set_style(label.style_label_down)
+        pivot.lb.set_color(colorRed2)
+    else
+        pivot.lb.set_style(label.style_label_up)
+        pivot.lb.set_color(colorGreen2)
+    pivot.lb.set_yloc(yloc.price)
+    pivot.lb.set_textcolor(colorWhite1)
+    pivot.lb.set_text(na)
+    pivot.ln.set_width(1)
+    pivot.lb.set_size(size.auto)
+
+if displayZigZags
+    zigZag.update()
+
+// Strategy
+// ================================
+STRATEGY_SETTINGS = "Strategy Settings"
+
+strategyEmaThresholdInput = input.string(title="Strategy EMA Threshold", defval="EMA 2", options=["EMA 1", "EMA 2", "EMA 3", "EMA 4", "EMA 5", "EMA 6", "EMA 7", "EMA 8"], group=STRATEGY_SETTINGS)
+strategyEntryLookbackInput = input.int(title="Strategy Entry lookback", defval=1, minval=1, group=STRATEGY_SETTINGS)
+strategyCloseLookbackInput = input.int(title="Strategy Close lookback", defval=1, minval=1, group=STRATEGY_SETTINGS)
+
+strategyEmaThreshold = switch strategyEmaThresholdInput
+	"EMA 1" => ema1
+	"EMA 2" => ema2
+	"EMA 3" => ema3
+	"EMA 4" => ema4
+	"EMA 5" => ema5
+	"EMA 6" => ema6
+	"EMA 7" => ema7
+	"EMA 8" => ema8
+
+crossoverStrategyEmaThreshold = ta.crossover(low, strategyEmaThreshold)
+crossunderStrategyEmaThreshold = ta.crossunder(high, strategyEmaThreshold)
+var crossoverStrategyEmaThresholdEvent = false
+var crossunderStrategyEmaThresholdEvent = false
+if (crossoverStrategyEmaThreshold)
+	crossoverStrategyEmaThresholdEvent := true
+	crossunderStrategyEmaThresholdEvent := false
+if (crossunderStrategyEmaThreshold)
+	crossunderStrategyEmaThresholdEvent := true
+	crossoverStrategyEmaThresholdEvent := false
+
+overStrategyEmaThresholdBarsEntry = barsOver(emaSourceInput, strategyEmaThreshold, strategyEntryLookbackInput)
+underStrategyEmaThresholdBarsEntry = barsUnder(emaSourceInput, strategyEmaThreshold, strategyEntryLookbackInput)
+allOverStrategyEmaThresholdEntry = overStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+allUnderStrategyEmaThresholdEntry = underStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+hasOverStrategyEmaThresholdEntry = overStrategyEmaThresholdBarsEntry > 0
+hasUnderStrategyEmaThresholdEntry = underStrategyEmaThresholdBarsEntry > 0
+
+overStrategyEmaThresholdBarsClose = barsOver(emaSourceInput, strategyEmaThreshold, strategyCloseLookbackInput)
+underStrategyEmaThresholdBarsClose = barsUnder(emaSourceInput, strategyEmaThreshold, strategyCloseLookbackInput)
+allOverStrategyEmaThresholdClose = overStrategyEmaThresholdBarsClose == strategyCloseLookbackInput
+allUnderStrategyEmaThresholdClose = underStrategyEmaThresholdBarsClose == strategyCloseLookbackInput
+hasOverStrategyEmaThresholdClose = overStrategyEmaThresholdBarsClose > 0
+hasUnderStrategyEmaThresholdClose = underStrategyEmaThresholdBarsClose > 0
+
+overDc1BasisBarsEntry = barsOver(close, dc1Basis, strategyEntryLookbackInput)
+underDc1BasisBarsEntry = barsUnder(close, dc1Basis, strategyEntryLookbackInput)
+allOverDc1BasisEntry = overDc1BasisBarsEntry == strategyEntryLookbackInput
+allUnderDc1BasisEntry = underDc1BasisBarsEntry == strategyEntryLookbackInput
+hasOverDc1BasisEntry = overDc1BasisBarsEntry > 0
+hasUnderDc1BasisEntry = underDc1BasisBarsEntry > 0
+
+overDc1BasisBarsClose = barsOver(close, dc1Basis, strategyCloseLookbackInput)
+underDc1BasisBarsClose = barsUnder(close, dc1Basis, strategyCloseLookbackInput)
+allOverDc1BasisClose = overDc1BasisBarsClose == strategyCloseLookbackInput
+allUnderDc1BasisClose = underDc1BasisBarsClose == strategyCloseLookbackInput
+hasOverDc1BasisClose = overDc1BasisBarsClose > 0
+hasUnderDc1BasisClose = underDc1BasisBarsClose > 0
+
+overDc2BasisBarsEntry = barsOver(close, dc2Basis, strategyEntryLookbackInput)
+underDc2BasisBarsEntry = barsUnder(close, dc2Basis, strategyEntryLookbackInput)
+allOverDc2BasisEntry = overDc2BasisBarsEntry == strategyEntryLookbackInput
+allUnderDc2BasisEntry = underDc2BasisBarsEntry == strategyEntryLookbackInput
+hasOverDc2BasisEntry = overDc2BasisBarsEntry > 0
+hasUnderDc2BasisEntry = underDc2BasisBarsEntry > 0
+
+overDc2BasisBarsClose = barsOver(close, dc2Basis, strategyCloseLookbackInput)
+underDc2BasisBarsClose = barsUnder(close, dc2Basis, strategyCloseLookbackInput)
+allOverDc2BasisClose = overDc2BasisBarsClose == strategyCloseLookbackInput
+allUnderDc2BasisClose = underDc2BasisBarsClose == strategyCloseLookbackInput
+hasOverDc2BasisClose = overDc2BasisBarsClose > 0
+hasUnderDc2BasisClose = underDc2BasisBarsClose > 0
+
+dc1OverStrategyEmaThresholdBarsEntry = barsOver(dc1Basis, strategyEmaThreshold, strategyEntryLookbackInput)
+dc1UnderStrategyEmaThresholdBarsEntry = barsUnder(dc1Basis, strategyEmaThreshold, strategyEntryLookbackInput)
+allDc1OverStrategyEmaThresholdBarsEntry = dc1OverStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+allDc1UnderStrategyEmaThresholdBarsEntry = dc1UnderStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+hasDc1OverStrategyEmaThresholdBarsEntry = dc1OverStrategyEmaThresholdBarsEntry > 0
+hasDc1UnderStrategyEmaThresholdBarsEntry = dc1UnderStrategyEmaThresholdBarsEntry > 0
+
+dc2OverStrategyEmaThresholdBarsEntry = barsOver(dc2Basis, strategyEmaThreshold, strategyEntryLookbackInput)
+dc2UnderStrategyEmaThresholdBarsEntry = barsUnder(dc2Basis, strategyEmaThreshold, strategyEntryLookbackInput)
+allDc2OverStrategyEmaThresholdBarsEntry = dc2OverStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+allDc2UnderStrategyEmaThresholdBarsEntry = dc2UnderStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+hasDc2OverStrategyEmaThresholdBarsEntry = dc2OverStrategyEmaThresholdBarsEntry > 0
+hasDc2UnderStrategyEmaThresholdBarsEntry = dc2UnderStrategyEmaThresholdBarsEntry > 0
+
+var isLongSession = false
+var isShortSession = false
+
+longEntry = (allOverStrategyEmaThresholdEntry and crossoverDc2Basis) or (crossoverStrategyEmaThreshold and allOverDc2BasisEntry) or (allOverStrategyEmaThresholdEntry and allDc1OverStrategyEmaThresholdBarsEntry and allDc2OverStrategyEmaThresholdBarsEntry and crossoverDc1Basis and (not crossoverDc2BasisEvent))
+longClose = allUnderStrategyEmaThresholdClose or allUnderDc1BasisClose
+
+shortEntry = (allUnderStrategyEmaThresholdEntry and crossunderDc2Basis) or (crossunderStrategyEmaThreshold and allUnderDc2BasisEntry) or (allUnderStrategyEmaThresholdEntry and allDc1UnderStrategyEmaThresholdBarsEntry and allDc2UnderStrategyEmaThresholdBarsEntry and crossunderDc1Basis and not(crossunderDc2BasisEvent))
+shortClose = allOverStrategyEmaThresholdClose or allOverDc1BasisClose
+
+if (longEntry)
+	crossoverStrategyEmaThresholdEvent := false
+	crossoverDc1BasisEvent := false
+	crossoverDc2BasisEvent := false
+
+if (shortEntry)
+	crossunderStrategyEmaThresholdEvent := false
+	crossunderDc1BasisEvent := false
+	crossunderDc2BasisEvent := false
+
+if (longEntry)
+	isLongSession := true
+	isShortSession := false
+if (longClose)
+	isLongSession := false
+
+if (shortEntry)
+	isShortSession := true
+	isLongSession := false
+if (shortClose)
+	isShortSession := false
+
+kcBoundaryColor = isLongSession ? colorGreen3 : isShortSession ? colorRed3 : colorBlack5
+kcBoundaryStyle = plot.style_stepline
+kcUpperPlot = plot(title="KC Band Upper", series=kcUpperBand, color=kcBoundaryColor, style=kcBoundaryStyle)
+kcLowerPlot = plot(title="KC Band Lower", series=kcLowerBand, color=kcBoundaryColor, style=kcBoundaryStyle)
+
+// 
+// ================================

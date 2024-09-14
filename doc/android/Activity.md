@@ -11,7 +11,7 @@
 - SingleTask
     - Resuse instance by invoke `onNewIntent()` if the Activity is exists in the Stack. 
     - It will removed all other Activity(s) that was on top of it.
-        - Eg: browser main page
+        - Eg: browser main page
 
 - SingleInstance
     - Create a new instance and put it into a new Stack, `onNewIntent()` will be invoked.
