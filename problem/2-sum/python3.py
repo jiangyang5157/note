@@ -31,7 +31,7 @@
 # Follow-up: Can you come up with an algorithm that is less than O(n2) time complexity?
 
 
-def two_sum(nums: list[int], target: int) -> list[int]:
+def main(nums: list[int], target: int) -> list[int]:
     num_to_index = {}  # Dictionary to store numbers and their indices
 
     for i, num in enumerate(nums):
@@ -43,4 +43,4 @@ def two_sum(nums: list[int], target: int) -> list[int]:
     return []  # No solution found
 
 
-print(two_sum([1, 2, 3, 4], 3))
+print(main([1, 2, 3, 4], 3))  # [0, 1]
