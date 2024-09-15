@@ -42,7 +42,7 @@
 # It is guaranteed that s is a valid roman numeral in the range [1, 3999].
 
 
-def main(self, s: str) -> int:
+def main(s: str) -> int:
     roman_to_int = {
         'I': 1,
         'V': 5,
