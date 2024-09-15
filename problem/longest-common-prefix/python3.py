@@ -22,8 +22,18 @@
 
 
 def main(strs: list[str]) -> str:
+    if not strs:  # Handle empty input
+        return ""
 
-    return "todo"
+    shortest = min(strs, key=len)  # Find the shortest string
+    for i, ch in enumerate(shortest):
+        for other in strs:
+            if other == shortest:  # Skip the shortest string itself
+                continue
+            if other[i] != ch:
+                return shortest[:i]  # No match at this position, return prefix up to here
+    return shortest  # All characters matched, return the shortest string
 
 
 print(main(["flower", "flow", "flight"]))  # "fl"
+print(main(["dog", "racecar", "car"]))  # ""
