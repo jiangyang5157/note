@@ -22,17 +22,22 @@
 
 
 def main(strs: list[str]) -> str:
-    if not strs:  # Handle empty input
+    if not strs:
         return ""
 
-    shortest = min(strs, key=len)  # Find the shortest string
+    # Optimization: Start with the shortest string as the potential prefix
+    shortest = min(strs, key=len)
+
     for i, ch in enumerate(shortest):
         for other in strs:
-            if other == shortest:  # Skip the shortest string itself
+            if other == shortest:
+                # Skip the shortest string itself
                 continue
-            if other[i] != ch:
-                return shortest[:i]  # No match at this position, return prefix up to here
-    return shortest  # All characters matched, return the shortest string
+            if i >= len(other) or other[i] != ch:
+                # return prefix up to here
+                return shortest[:i] 
+
+    return shortest  # If the loop completes, the shortest string is the common prefix
 
 
 print(main(["flower", "flow", "flight"]))  # "fl"
