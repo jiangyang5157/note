@@ -89,18 +89,24 @@ if __name__ == "__main__":
     fetch_and_process_data(SYMBOL)
     plot_chart(ax, SYMBOL)
 
-    # Add a TextBox for symbol input
-    ax_textbox = plt.axes([0.15, 0.01, 0.2, 0.04]) # [left, bottom, width, height]
-    symbol_textbox = TextBox(ax_textbox, "Symbol", initial=SYMBOL)
-    # We don't need a submit function for the textbox itself,
-    # as the reload button will trigger the update.
-
     # Add a reload button
-    ax_reload = plt.axes([0.01, 0.01, 0.1, 0.04]) # Adjusted position
+    ax_reload_left = 0.01
+    ax_reload_bottom = 0.01
+    ax_reload_width = 0.1
+    ax_reload_height = 0.04
+    ax_reload = plt.axes([ax_reload_left, ax_reload_bottom, ax_reload_width, ax_reload_height]) # Adjusted position
     reload_button = Button(ax_reload, "Reload")
     reload_button.on_clicked(
         update_chart # The update_chart function will get the symbol from the textbox
     )
+
+    # Add a TextBox for symbol input
+    ax_symbol_left = ax_reload_left + ax_reload_width + 0.01
+    ax_symbol_bottom = ax_reload_bottom
+    ax_symbol_width = 1 - ax_reload_left  - ax_symbol_left
+    ax_symbol_height = ax_reload_height
+    ax_symbol = plt.axes([ax_symbol_left, ax_symbol_bottom, ax_symbol_width, ax_symbol_height]) # [left, bottom, width, height]
+    symbol_textbox = TextBox(ax_symbol, "", initial=SYMBOL)
 
     # Fullscreen mode
     mng = plt.get_current_fig_manager()

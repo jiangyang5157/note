@@ -3,13 +3,14 @@ import binance_utils as binance
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.widgets import Button
+from matplotlib.widgets import Button, TextBox
 
 # Global variables to store data and chart objects
 klines = None
 most_volatile = None
 fig = None
 ax = None
+watchlist_textbox = None # For the watchlist input text field
 
 def fetch_and_process_data(interval, period, threshold, watch_list=None):
     """Fetches kline data and identifies most volatile symbols."""
@@ -52,10 +53,13 @@ def plot_chart(ax, period, threshold):
     ax.legend(loc="upper left", bbox_to_anchor=(0, 1), ncol=2, fontsize="small")
 
 
-def update_chart(event, interval, period, threshold, watch_list=None):
+def update_chart(event, interval, period, threshold):
     """Updates the chart with the latest data."""
+    global watchlist_textbox # Access the global textbox
     print("Reloading chart...")
-    fetch_and_process_data(interval, period, threshold, watch_list)
+    # Get symbols from textbox, split by newline, strip whitespace, and convert to uppercase
+    current_watchlist = [symbol.strip().upper() for symbol in watchlist_textbox.text.split(',') if symbol.strip()]
+    fetch_and_process_data(interval, period, threshold, current_watchlist)
     plot_chart(ax, period, threshold)
     fig.canvas.draw_idle()
 
@@ -89,18 +93,10 @@ if __name__ == "__main__":
         nargs="+",
         default=[
             "BTCUSDT",
-            "ETHUSDT",
+
             "BNBUSDT",
-            
+            "ETHUSDT",
             "SOLUSDT",
-            "PEPEUSDT",
-            "PEOPLEUSDT",
-            "WIFUSDT",
-            "DOGEUSDT",
-            "NEIROUSDT",
-            "ADAUSDT",
-            
-            "PNUTUSDT",
         ],
         help="Space-separated list of symbols to watch (e.g., BTCUSDT ETHUSDT). Default: BTCUSDT ETHUSDT BNBUSDT SOLUSDT",
     )
@@ -113,15 +109,36 @@ if __name__ == "__main__":
 
     # Initial setup
     fig, ax = plt.subplots(figsize=(10, 6))
+    plt.subplots_adjust(bottom=0.2) # Adjust bottom to make space for widgets
+
     fetch_and_process_data(INTERVAL, PERIOD, THRESHOLD, WATCH_LIST)
     plot_chart(ax, PERIOD, THRESHOLD)
 
     # Add a reload button
-    ax_reload = plt.axes([0, 0, 0.1, 0.06])
+    reload_button_ax_left = 0.02
+    reload_button_ax_bottom = 0.05
+    reload_button_ax_width = 0.1
+    reload_button_ax_height = 0.04
+
+    ax_reload_left = 0.01
+    ax_reload_bottom = 0.01
+    ax_reload_width = 0.1
+    ax_reload_height = 0.04
+
+    ax_reload = plt.axes([ax_reload_left, ax_reload_bottom, ax_reload_width, ax_reload_height])
     reload_button = Button(ax_reload, "Reload")
     reload_button.on_clicked(
-        lambda event: update_chart(event, INTERVAL, PERIOD, THRESHOLD, WATCH_LIST)
+        lambda event: update_chart(event, INTERVAL, PERIOD, THRESHOLD)
     )
+
+    # Add a TextBox for watchlist input
+    ax_watchlist_left = ax_reload_left + ax_reload_width + 0.01
+    ax_watchlist_bottom = ax_reload_bottom
+    ax_watchlist_width = 1 - ax_reload_left  - ax_watchlist_left
+    ax_watchlist_height = ax_reload_height
+    ax_watchlist = plt.axes([ax_watchlist_left, ax_watchlist_bottom, ax_watchlist_width, ax_watchlist_height]) # [left, bottom, width, height]
+    initial_watchlist = ", ".join(WATCH_LIST) # Use comma and space as separator
+    watchlist_textbox = TextBox(ax_watchlist, "", initial=initial_watchlist)
 
     # Fullscreen mode
     mng = plt.get_current_fig_manager()
