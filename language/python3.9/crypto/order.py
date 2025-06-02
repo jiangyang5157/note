@@ -12,13 +12,12 @@ fig = None
 ax = None
 symbol_textbox = None # For the symbol input text field
 
-
-def fetch_and_process_data(symbol):
+def fetch_and_process_data(symbol, threshold):
     """Fetches order book data and processes large orders."""
     global order_book_data, large_buy_orders, large_sell_orders
     order_book_data = binance.fetch_order_book(symbol=symbol, limit=5000)
     large_buy_orders, large_sell_orders = binance.get_large_orders_from_order_book(
-        order_book_data, 500000
+        order_book_data, threshold
     )
 
 
@@ -60,18 +59,25 @@ def plot_chart(ax, symbol):
     ax.legend()
 
 
-def update_chart(event):
+def update_chart(event, threshold):
     """Updates the chart with new order book data."""
     global symbol_textbox # Access the global textbox
     current_symbol = symbol_textbox.text.upper() # Get symbol from textbox
     print("Reloading chart...")
-    fetch_and_process_data(current_symbol)
+    fetch_and_process_data(current_symbol, threshold)
     plot_chart(ax, current_symbol) # Pass the current symbol to plot_chart
     fig.canvas.draw_idle()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze cryptocurrency order book.")
+    parser.add_argument(
+        "-t",
+        "--threshold",
+        type=float,
+        default=500000,
+        help="Asset threshold for defining a large order level (in quote asset value, e.g., USDT). Default: 500000",
+    )
     parser.add_argument(
         "-s",
         "--symbol",
@@ -80,13 +86,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    THRESHOLD = args.threshold
     SYMBOL = args.symbol.upper()
 
     # Initial plot setup
     fig, ax = plt.subplots(figsize=(10, 6))
     plt.subplots_adjust(bottom=0.1) # Adjust bottom to make space for widgets
 
-    fetch_and_process_data(SYMBOL)
+    fetch_and_process_data(SYMBOL, THRESHOLD)
     plot_chart(ax, SYMBOL)
 
     # Add a reload button
@@ -97,7 +104,7 @@ if __name__ == "__main__":
     ax_reload = plt.axes([ax_reload_left, ax_reload_bottom, ax_reload_width, ax_reload_height]) # Adjusted position
     reload_button = Button(ax_reload, "Reload")
     reload_button.on_clicked(
-        update_chart # The update_chart function will get the symbol from the textbox
+        lambda event: update_chart(event, THRESHOLD) # The update_chart function will get the symbol from the textbox
     )
 
     # Add a TextBox for symbol input
