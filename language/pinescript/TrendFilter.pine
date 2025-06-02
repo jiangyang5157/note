@@ -1,0 +1,487 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © jiangyang5157
+
+//@version=5
+strategy(title="TrendFilter", overlay=true, max_lines_count=100, max_labels_count=500, max_bars_back=1000)
+
+// Common
+// ================================
+
+// Function to count the number of consecutive backwards bars where the source is under the target for the given lookback period
+barsOver(source, target, lookback) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] <= target[i] 
+            break
+        count += 1
+    count
+
+// Function to count the number of consecutive backwards bars where the source is under the target for the given lookback period
+barsUnder(source, target, lookback) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] >= target[i] 
+            break
+        count += 1
+    count
+
+// Function to check if the source is under the target for the given lookback period
+isOver(source, target, lookback = 1) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] > target[i]
+            count += 1
+    count == lookback
+
+// Function to check if the source is over the target for the given lookback period
+isUnder(source, target, lookback = 1) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] < target[i]
+            count += 1
+    count == lookback
+
+// Function to calculate the moving avg
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+addTransparency(hexColor, transparency) =>
+    alpha = int(100 - transparency * 100)
+    r = color.r(hexColor)
+    g = color.g(hexColor)
+    b = color.b(hexColor)
+    color.rgb(r, g, b, alpha)
+
+roundToStep(value, stepSize) =>
+    stepSize * int(value / stepSize + 0.5)
+
+minValue(val1, val2) =>
+    val1 < val2 ? val1 : val2
+
+maxValue(val1, val2) =>
+    val1 > val2 ? val1 : val2
+
+// https://m2.material.io/design/color/the-color-system.html#tools-for-picking-colors
+
+const color colorWhite = #FFFFFF
+const color colorBlack = #000000
+
+const color colorGray50 = #FAFAFA
+const color colorGray100 = #F5F5F5
+const color colorGray200 = #EEEEEE
+const color colorGray300 = #E0E0E0
+const color colorGray400 = #BDBDBD
+const color colorGray500 = #9E9E9E
+const color colorGray600 = #757575
+const color colorGray700 = #616161
+const color colorGray800 = #424242
+const color colorGray900 = #212121
+
+const color colorGreen50 = #E8F5E9
+const color colorGreen100 = #C8E6C9
+const color colorGreen200 = #A5D6A7
+const color colorGreen300 = #81C784
+const color colorGreen400 = #66BB6A
+const color colorGreen500 = #4CAF50
+const color colorGreen600 = #43A047
+const color colorGreen700 = #388E3C
+const color colorGreen800 = #2E7D32
+const color colorGreen900 = #1B5E20
+
+const color colorBlue50 = #E3F2FD
+const color colorBlue100 = #BBDEFB
+const color colorBlue200 = #90CAF9
+const color colorBlue300 = #64B5F6
+const color colorBlue400 = #42A5F5
+const color colorBlue500 = #2196F3
+const color colorBlue600 = #1E88E5
+const color colorBlue700 = #1976D2
+const color colorBlue800 = #1565C0
+const color colorBlue900 = #0D47A1
+
+const color colorYellow50 = #FFFDE7
+const color colorYellow100 = #FFF9C4
+const color colorYellow200 = #FFF59D
+const color colorYellow300 = #FFF176
+const color colorYellow400 = #FFEE58
+const color colorYellow500 = #FFEB3B
+const color colorYellow600 = #FDD835
+const color colorYellow700 = #FBC02D
+const color colorYellow800 = #F9A825
+const color colorYellow900 = #F57F17
+
+const color colorOrange50 = #FFF3E0
+const color colorOrange100 = #FFE0B2
+const color colorOrange200 = #FFCC80
+const color colorOrange300 = #FFB74D
+const color colorOrange400 = #FFA726
+const color colorOrange500 = #FF9800
+const color colorOrange600 = #FB8C00
+const color colorOrange700 = #F57C00
+const color colorOrange800 = #EF6C00
+const color colorOrange900 = #E65100
+
+const color colorRed50 = #FFEBEE
+const color colorRed100 = #FFCDD2
+const color colorRed200 = #EF9A9A
+const color colorRed300 = #E57373
+const color colorRed400 = #EF5350
+const color colorRed500 = #F44336
+const color colorRed600 = #E53935
+const color colorRed700 = #D32F2F
+const color colorRed800 = #C62828
+const color colorRed900 = #B71C1C
+
+const color colorBackgroundDark = #181a1f
+const color colorGreenSymbol = #089981
+const color colorRedSymbol = #F23645
+const color colorGreyFill = addTransparency(colorGray500, 0.5)
+const color colorGreyIndicator = colorGray500
+const color colorBlueIndicator = colorBlue500
+const color colorOrangeIndicator = colorOrange500
+const color colorGreyLine = colorGray700
+const color colorRedLabel = colorRed500
+const color colorGrayGird = addTransparency(colorGray500, 0.2)
+
+lowPlot = plot(high, color=na, display=display.none, editable=false)
+highPlot = plot(low, color=na, display=display.none, editable=false)
+
+// EMA
+// ================================
+const string EMA_SETTINGS = "EMA Settings"
+
+float emaSourceInput = input.source(title="Source", defval=close, group=EMA_SETTINGS)
+int emaShowLastInput = input.int(title="Show Last Bars", defval=100, minval=1, group=EMA_SETTINGS)
+
+int ema1LengthInput = input.int(title="EMA 1 Length", defval=21, minval=1, group=EMA_SETTINGS)
+bool ema1Visibility = input.bool(title="EMA 1 Visibility", defval=true, group=EMA_SETTINGS)
+int ema2LengthInput = input.int(title="EMA 2 Length", defval=55, minval=1, group=EMA_SETTINGS)
+bool ema2Visibility = input.bool(title="EMA 2 Visibility", defval=true, group=EMA_SETTINGS)
+int ema3LengthInput = input.int(title="EMA 3 Length", defval=100, minval=1, group=EMA_SETTINGS)
+bool ema3Visibility = input.bool(title="EMA 3 Visibility", defval=true, group=EMA_SETTINGS)
+int ema4LengthInput = input.int(title="EMA 4 Length", defval=200, minval=1, group=EMA_SETTINGS)
+bool ema4Visibility = input.bool(title="EMA 4 Visibility", defval=true, group=EMA_SETTINGS)
+int emaVigasFilterLength = 12
+int emaVigas1Length = 144
+int emaVigas2Length = 169
+int emaVigas3Length = 576
+int emaVigas4Length = 676
+bool emaVigasVisibility = input.bool(title="EMA Vigas Visibility", defval=true, group=EMA_SETTINGS)
+
+float ema1 = ta.ema(emaSourceInput, ema1LengthInput)
+float ema2 = ta.ema(emaSourceInput, ema2LengthInput)
+float ema3 = ta.ema(emaSourceInput, ema3LengthInput)
+float ema4 = ta.ema(emaSourceInput, ema4LengthInput)
+float emaVigas1 = ta.ema(emaSourceInput, emaVigas1Length)
+float emaVigas2 = ta.ema(emaSourceInput, emaVigas2Length)
+float emaVigas3 = ta.ema(emaSourceInput, emaVigas3Length)
+float emaVigas4 = ta.ema(emaSourceInput, emaVigas4Length)
+float emaVigasFilter = ta.ema(emaSourceInput, emaVigasFilterLength)
+
+bool overEma1 = isOver(emaSourceInput, ema1)
+bool overEma2 = isOver(emaSourceInput, ema2)
+bool overEma3 = isOver(emaSourceInput, ema3)
+bool overEma4 = isOver(emaSourceInput, ema4)
+bool overEmaVigas1 = isOver(emaSourceInput, emaVigas1)
+bool overEmaVigas2 = isOver(emaSourceInput, emaVigas2)
+bool overEmaVigas3 = isOver(emaSourceInput, emaVigas3)
+bool overEmaVigas4 = isOver(emaSourceInput, emaVigas4)
+bool overEmaVigasFilter = isOver(emaSourceInput, emaVigasFilter)
+
+bool underEma1 = isUnder(emaSourceInput, ema1)
+bool underEma2 = isUnder(emaSourceInput, ema2)
+bool underEma3 = isUnder(emaSourceInput, ema3)
+bool underEma4 = isUnder(emaSourceInput, ema4)
+bool underEmaVigas1 = isUnder(emaSourceInput, emaVigas1)
+bool underEmaVigas2 = isUnder(emaSourceInput, emaVigas2)
+bool underEmaVigas3 = isUnder(emaSourceInput, emaVigas3)
+bool underEmaVigas4 = isUnder(emaSourceInput, emaVigas4)
+bool underEmaVigasFilter = isUnder(emaSourceInput, emaVigasFilter)
+
+bool crossoverEma1 = ta.crossover(low, ema1)
+bool crossoverEma2 = ta.crossover(low, ema2)
+bool crossoverEma3 = ta.crossover(low, ema3)
+bool crossoverEma4 = ta.crossover(low, ema4)
+bool crossoverEmaVigas1 = ta.crossover(low, emaVigas1)
+bool crossoverEmaVigas2 = ta.crossover(low, emaVigas2)
+bool crossoverEmaVigas3 = ta.crossover(low, emaVigas3)
+bool crossoverEmaVigas4 = ta.crossover(low, emaVigas4)
+bool crossoverEmaVigasFilter = ta.crossover(low, emaVigasFilter)
+
+bool crossunderEma1 = ta.crossunder(high, ema1)
+bool crossunderEma2 = ta.crossunder(high, ema2)
+bool crossunderEma3 = ta.crossunder(high, ema3)
+bool crossunderEma4 = ta.crossunder(high, ema4)
+bool crossunderEmaVigas1 = ta.crossunder(high, emaVigas1)
+bool crossunderEmaVigas2 = ta.crossunder(high, emaVigas2)
+bool crossunderEmaVigas3 = ta.crossunder(high, emaVigas3)
+bool crossunderEmaVigas4 = ta.crossunder(high, emaVigas4)
+bool crossunderEmaVigasFilter = ta.crossunder(high, emaVigasFilter)
+
+color ema1Color = colorBlueIndicator
+color ema2Color = colorOrangeIndicator
+color ema3Color = colorGreyIndicator
+color ema4Color = colorGreyIndicator
+color emaVigasColor = colorGrayGird
+
+ema1Display = ema1Visibility ? display.all : display.none
+ema2Display = ema2Visibility ? display.all : display.none
+ema3Display = ema3Visibility ? display.all : display.none
+ema4Display = ema4Visibility ? display.all : display.none
+emaVigasDisplay = emaVigasVisibility ? display.all : display.none
+
+plot(title="EMA 1 Plot", series=ema1, show_last=emaShowLastInput, color=ema1Color, display=ema1Display)
+plot(title="EMA 2 Plot", series=ema2, show_last=emaShowLastInput, color=ema2Color, display=ema2Display)
+plot(title="EMA 3 Plot", series=ema3, show_last=emaShowLastInput, color=ema3Color, display=ema3Display)
+plot(title="EMA 4 Plot", series=ema4, show_last=emaShowLastInput, color=ema4Color, display=ema4Display)
+vigas1Plot = plot(title="Vigas 1 Plot", series=emaVigas1, show_last=emaShowLastInput, color=na, display=display.none, editable=false)
+vigas2Plot = plot(title="Vigas 2 Plot", series=emaVigas2, show_last=emaShowLastInput, color=na, display=display.none, editable=false)
+vigas3Plot = plot(title="Vigas 3 Plot", series=emaVigas3, show_last=emaShowLastInput, color=na, display=display.none, editable=false)
+vigas4Plot = plot(title="Vigas 4 Plot", series=emaVigas4, show_last=emaShowLastInput, color=na, display=display.none, editable=false)
+plot(title="Vigas Filter Plot", series=emaVigasFilter, show_last=emaShowLastInput, color=emaVigasColor, display=emaVigasDisplay, editable=false)
+fill(title="Vigas Band 1-2", plot1=vigas1Plot, plot2=vigas2Plot, color=emaVigasColor, display=emaVigasDisplay, editable=false)
+fill(title="Vigas Band 3-4", plot1=vigas3Plot, plot2=vigas4Plot, color=emaVigasColor, display=emaVigasDisplay, editable=false)
+
+const string emaLabelPaddingStart = "                                    "
+if ema1Visibility
+    label.delete(label.new(text=emaLabelPaddingStart+"Ema "+str.tostring(ema1LengthInput)+": " + str.tostring(ema1, format.mintick), x=bar_index, y=ema1, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=ema1Color, size=size.small)[1])
+if ema2Visibility
+    label.delete(label.new(text=emaLabelPaddingStart+"Ema "+str.tostring(ema2LengthInput)+": " + str.tostring(ema2, format.mintick), x=bar_index, y=ema2, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=ema2Color, size=size.small)[1])
+if ema3Visibility
+    label.delete(label.new(text=emaLabelPaddingStart+"Ema "+str.tostring(ema3LengthInput)+": " + str.tostring(ema3, format.mintick), x=bar_index, y=ema3, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=ema3Color, size=size.small)[1])
+if ema4Visibility
+    label.delete(label.new(text=emaLabelPaddingStart+"Ema "+str.tostring(ema4LengthInput)+": " + str.tostring(ema4, format.mintick), x=bar_index, y=ema4, xloc=xloc.bar_index, yloc=yloc.price, color=na, textcolor=ema4Color, size=size.small)[1])
+
+// Donchian Channels
+// ================================
+const string DC_SETTINGS = "Donchian Channels Settings"
+
+int dc1LengthInput = input.int(title="DC 1 Length", defval=21, minval=1, group=DC_SETTINGS)
+int dc2LengthInput = input.int(title="DC 2 Length", defval=55, minval=1, group=DC_SETTINGS)
+
+float dc1Upper =  ta.highest(dc1LengthInput)
+float dc2Upper =  ta.highest(dc2LengthInput)
+float dc1Lower =  ta.lowest(dc1LengthInput)
+float dc2Lower =  ta.lowest(dc2LengthInput)
+float dc1Basis =  math.avg(dc1Upper, dc1Lower)
+float dc2Basis =  math.avg(dc2Upper, dc2Lower)
+
+bool crossoverDc1Basis = ta.crossover(low, dc1Basis)
+bool crossunderDc1Basis = ta.crossunder(high, dc1Basis)
+
+var bool crossoverDc1BasisEvent = false
+var bool crossunderDc1BasisEvent = false
+if (crossoverDc1Basis)
+	crossoverDc1BasisEvent := true
+	crossunderDc1BasisEvent := false
+if (crossunderDc1Basis)
+	crossunderDc1BasisEvent := true
+	crossoverDc1BasisEvent := false
+
+bool crossoverDc2Basis = ta.crossover(low, dc2Basis)
+bool crossunderDc2Basis = ta.crossunder(high, dc2Basis)
+
+var bool crossoverDc2BasisEvent = false
+var bool crossunderDc2BasisEvent = false
+if (crossoverDc2Basis)
+	crossoverDc2BasisEvent := true
+	crossunderDc2BasisEvent := false
+if (crossunderDc2Basis)
+	crossunderDc2BasisEvent := true
+	crossoverDc2BasisEvent := false
+
+plot(title="DC 1 Basis Plot", series=dc1Basis, color=colorBlueIndicator, display=display.none, editable=false)
+plot(title="DC 2 Basis Plot", series=dc2Basis, color=colorOrangeIndicator, display=display.none, editable=false)
+
+// Keltner Channels
+// ================================
+const string KC_SETTINGS = "Keltner Channels Settings"
+
+string kcEmaThresholdInput = input.string(title="KC Threshold", defval="EMA 1", options=["EMA 1", "EMA 2", "EMA 3", "EMA 4"], group=KC_SETTINGS)
+int kcAtrLengthInput = input.int(title="ATR Length", defval=21, minval=1, group=KC_SETTINGS)
+float kcMultiplierInput = input.float(title="ATR Multiplier", defval=2, minval=0.1, step=0.1, group=KC_SETTINGS)
+
+float kcBasis = switch kcEmaThresholdInput
+	"EMA 1" => ema1
+	"EMA 2" => ema2
+	"EMA 3" => ema3
+	"EMA 4" => ema4
+    
+float kcAtr = ta.atr(kcAtrLengthInput)
+float kcUpperBand = kcBasis + (kcMultiplierInput * kcAtr)
+float kcLowerBand = kcBasis - (kcMultiplierInput * kcAtr)
+
+// Bollinger Bands
+// ================================
+const string BB_SETTINGS = "Bollinger Bands Settings"
+
+int bbLengthInput = input.int(defval=55, minval=1, title="Length", group=BB_SETTINGS)
+string bbMaTypeInput = input.string(title="MA Type", defval="VWMA", options=["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"], group=BB_SETTINGS)
+float bbStdevInput = input.float(title="Std Dev", defval=2, minval=0.1, step=0.1, group=BB_SETTINGS)
+
+float bbBasis = ma(close, bbLengthInput, bbMaTypeInput)
+float bbUpper = bbBasis + bbStdevInput * ta.stdev(close, bbLengthInput)
+float bbLower = bbBasis - bbStdevInput * ta.stdev(close, bbLengthInput)
+
+bbUpperPlot = plot(bbUpper, color=na, display=display.none, editable=false)
+bbLowerPlot = plot(bbLower, color=na, display=display.none, editable=false)
+
+// ATR
+// ================================
+
+const int atrLength = 14
+float atrValue = ta.atr(atrLength)
+
+var table atrTable = table.new(position=position.top_right, columns=1, rows=1)
+
+table.cell(table_id=atrTable, column=0, row=0, text="Atr: "+str.tostring(atrValue, format.mintick), text_color=colorRedLabel, text_size=size.auto)
+
+// Strategy
+// ================================
+const string STRATEGY_SETTINGS = "Strategy Settings"
+
+string strategyEmaThresholdInput = input.string(title="Threshold", defval="EMA 1", options=["EMA 1", "EMA 2", "EMA 3", "EMA 4"], group=STRATEGY_SETTINGS)
+int strategyEntryLookbackInput = input.int(title="Entry lookback", defval=1, minval=1, group=STRATEGY_SETTINGS)
+int strategyCloseLookbackInput = input.int(title="Close lookback", defval=1, minval=1, group=STRATEGY_SETTINGS)
+
+float strategyEmaThreshold = switch strategyEmaThresholdInput
+	"EMA 1" => ema1
+	"EMA 2" => ema2
+	"EMA 3" => ema3
+	"EMA 4" => ema4
+
+bool crossoverStrategyEmaThreshold = ta.crossover(low, strategyEmaThreshold)
+bool crossunderStrategyEmaThreshold = ta.crossunder(high, strategyEmaThreshold)
+var bool crossoverStrategyEmaThresholdEvent = false
+var bool crossunderStrategyEmaThresholdEvent = false
+if (crossoverStrategyEmaThreshold)
+	crossoverStrategyEmaThresholdEvent := true
+	crossunderStrategyEmaThresholdEvent := false
+if (crossunderStrategyEmaThreshold)
+	crossunderStrategyEmaThresholdEvent := true
+	crossoverStrategyEmaThresholdEvent := false
+
+int overStrategyEmaThresholdBarsEntry = barsOver(emaSourceInput, strategyEmaThreshold, strategyEntryLookbackInput)
+int  underStrategyEmaThresholdBarsEntry = barsUnder(emaSourceInput, strategyEmaThreshold, strategyEntryLookbackInput)
+bool allOverStrategyEmaThresholdEntry = overStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+bool allUnderStrategyEmaThresholdEntry = underStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+bool hasOverStrategyEmaThresholdEntry = overStrategyEmaThresholdBarsEntry > 0
+bool hasUnderStrategyEmaThresholdEntry = underStrategyEmaThresholdBarsEntry > 0
+
+int overStrategyEmaThresholdBarsClose = barsOver(emaSourceInput, strategyEmaThreshold, strategyCloseLookbackInput)
+int underStrategyEmaThresholdBarsClose = barsUnder(emaSourceInput, strategyEmaThreshold, strategyCloseLookbackInput)
+bool allOverStrategyEmaThresholdClose = overStrategyEmaThresholdBarsClose == strategyCloseLookbackInput
+bool allUnderStrategyEmaThresholdClose = underStrategyEmaThresholdBarsClose == strategyCloseLookbackInput
+bool hasOverStrategyEmaThresholdClose = overStrategyEmaThresholdBarsClose > 0
+bool hasUnderStrategyEmaThresholdClose = underStrategyEmaThresholdBarsClose > 0
+
+int overDc1BasisBarsEntry = barsOver(close, dc1Basis, strategyEntryLookbackInput)
+int underDc1BasisBarsEntry = barsUnder(close, dc1Basis, strategyEntryLookbackInput)
+bool allOverDc1BasisEntry = overDc1BasisBarsEntry == strategyEntryLookbackInput
+bool allUnderDc1BasisEntry = underDc1BasisBarsEntry == strategyEntryLookbackInput
+bool hasOverDc1BasisEntry = overDc1BasisBarsEntry > 0
+bool hasUnderDc1BasisEntry = underDc1BasisBarsEntry > 0
+
+int overDc1BasisBarsClose = barsOver(close, dc1Basis, strategyCloseLookbackInput)
+int underDc1BasisBarsClose = barsUnder(close, dc1Basis, strategyCloseLookbackInput)
+bool allOverDc1BasisClose = overDc1BasisBarsClose == strategyCloseLookbackInput
+bool allUnderDc1BasisClose = underDc1BasisBarsClose == strategyCloseLookbackInput
+bool hasOverDc1BasisClose = overDc1BasisBarsClose > 0
+bool hasUnderDc1BasisClose = underDc1BasisBarsClose > 0
+
+int overDc2BasisBarsEntry = barsOver(close, dc2Basis, strategyEntryLookbackInput)
+int underDc2BasisBarsEntry = barsUnder(close, dc2Basis, strategyEntryLookbackInput)
+bool allOverDc2BasisEntry = overDc2BasisBarsEntry == strategyEntryLookbackInput
+bool allUnderDc2BasisEntry = underDc2BasisBarsEntry == strategyEntryLookbackInput
+bool hasOverDc2BasisEntry = overDc2BasisBarsEntry > 0
+bool hasUnderDc2BasisEntry = underDc2BasisBarsEntry > 0
+
+int overDc2BasisBarsClose = barsOver(close, dc2Basis, strategyCloseLookbackInput)
+int underDc2BasisBarsClose = barsUnder(close, dc2Basis, strategyCloseLookbackInput)
+bool allOverDc2BasisClose = overDc2BasisBarsClose == strategyCloseLookbackInput
+bool allUnderDc2BasisClose = underDc2BasisBarsClose == strategyCloseLookbackInput
+bool hasOverDc2BasisClose = overDc2BasisBarsClose > 0
+bool hasUnderDc2BasisClose = underDc2BasisBarsClose > 0
+
+int dc1OverStrategyEmaThresholdBarsEntry = barsOver(dc1Basis, strategyEmaThreshold, strategyEntryLookbackInput)
+int dc1UnderStrategyEmaThresholdBarsEntry = barsUnder(dc1Basis, strategyEmaThreshold, strategyEntryLookbackInput)
+bool allDc1OverStrategyEmaThresholdBarsEntry = dc1OverStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+bool allDc1UnderStrategyEmaThresholdBarsEntry = dc1UnderStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+bool hasDc1OverStrategyEmaThresholdBarsEntry = dc1OverStrategyEmaThresholdBarsEntry > 0
+bool hasDc1UnderStrategyEmaThresholdBarsEntry = dc1UnderStrategyEmaThresholdBarsEntry > 0
+
+int dc2OverStrategyEmaThresholdBarsEntry = barsOver(dc2Basis, strategyEmaThreshold, strategyEntryLookbackInput)
+int dc2UnderStrategyEmaThresholdBarsEntry = barsUnder(dc2Basis, strategyEmaThreshold, strategyEntryLookbackInput)
+bool allDc2OverStrategyEmaThresholdBarsEntry = dc2OverStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+bool allDc2UnderStrategyEmaThresholdBarsEntry = dc2UnderStrategyEmaThresholdBarsEntry == strategyEntryLookbackInput
+bool hasDc2OverStrategyEmaThresholdBarsEntry = dc2OverStrategyEmaThresholdBarsEntry > 0
+bool hasDc2UnderStrategyEmaThresholdBarsEntry = dc2UnderStrategyEmaThresholdBarsEntry > 0
+
+var bool isLongSession = false
+var bool isShortSession = false
+
+bool longEntry = (allOverStrategyEmaThresholdEntry and crossoverDc2Basis) or
+                 (crossoverStrategyEmaThreshold and allOverDc2BasisEntry) or 
+                 (allOverStrategyEmaThresholdEntry and 
+                  allDc1OverStrategyEmaThresholdBarsEntry and 
+                  allDc2OverStrategyEmaThresholdBarsEntry and 
+                  crossoverDc1Basis and (not crossoverDc2BasisEvent))
+bool longClose = allUnderStrategyEmaThresholdClose or allUnderDc1BasisClose
+
+bool shortEntry = (allUnderStrategyEmaThresholdEntry and crossunderDc2Basis) or 
+                  (crossunderStrategyEmaThreshold and allUnderDc2BasisEntry) or 
+                  (allUnderStrategyEmaThresholdEntry and 
+                   allDc1UnderStrategyEmaThresholdBarsEntry and 
+                   allDc2UnderStrategyEmaThresholdBarsEntry and 
+                   crossunderDc1Basis and (not crossunderDc2BasisEvent))
+bool shortClose = allOverStrategyEmaThresholdClose or allOverDc1BasisClose
+
+if (longEntry)
+	crossoverStrategyEmaThresholdEvent := false
+	crossoverDc1BasisEvent := false
+	crossoverDc2BasisEvent := false
+
+if (shortEntry)
+	crossunderStrategyEmaThresholdEvent := false
+	crossunderDc1BasisEvent := false
+	crossunderDc2BasisEvent := false
+
+if (longEntry)
+	isLongSession := true
+	isShortSession := false
+if (longClose)
+	isLongSession := false
+
+if (shortEntry)
+	isShortSession := true
+	isLongSession := false
+if (shortClose)
+	isShortSession := false
+
+color kcBoundaryColor = isLongSession ? addTransparency(colorGreenSymbol, 0.5) : isShortSession ? addTransparency(colorRedSymbol, 0.5) : addTransparency(colorGrayGird, 0.5)
+kcBoundaryStyle = plot.style_stepline
+kcUpperPlot=plot(title="KC Band Upper Plot", series=kcUpperBand, color=kcBoundaryColor, style=kcBoundaryStyle, editable=false)
+kcLowerPlot=plot(title="KC Band Lower Plot", series=kcLowerBand, color=kcBoundaryColor, style=kcBoundaryStyle, editable=false)
+
+color kcBbOverBandColor = high > kcUpperBand and high > bbUpper ? colorGreyFill : na
+color kcBbUnderBandColor = low < kcLowerBand and low < bbLower ? colorGreyFill : na
+fill(title="KC BB Over Band Area", plot1=kcUpperPlot, plot2=lowPlot, color=kcBbOverBandColor, display=display.none, editable=false)
+fill(title="KC BB Under Band Area", plot1=kcLowerPlot, plot2=highPlot, color=kcBbUnderBandColor, display=display.none, editable=false)
+
+// @strategy
+if (longEntry and strategy.position_size == 0)
+    strategy.entry("L", strategy.long)
+if (longClose and strategy.position_size > 0)
+    strategy.close("L")
+if (shortEntry and strategy.position_size == 0)
+    strategy.entry("S", strategy.short)
+if (shortClose and strategy.position_size < 0)
+    strategy.close("S")
+
+// 
+// ================================

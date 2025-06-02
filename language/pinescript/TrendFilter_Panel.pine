@@ -1,0 +1,417 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © jiangyang5157
+
+//@version=5
+indicator(title="TrendFilter_Panel", timeframe="", timeframe_gaps=true, max_labels_count=500)
+
+// Common
+// ================================
+
+// Function to count the number of consecutive backwards bars where the source is under the target for the given lookback period
+barsOver(source, target, lookback) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] <= target[i] 
+            break
+        count += 1
+    count
+
+// Function to count the number of consecutive backwards bars where the source is under the target for the given lookback period
+barsUnder(source, target, lookback) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] >= target[i] 
+            break
+        count += 1
+    count
+
+// Function to check if the source is under the target for the given lookback period
+isOver(source, target, lookback = 1) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] > target[i]
+            count += 1
+    count == lookback
+
+// Function to check if the source is over the target for the given lookback period
+isUnder(source, target, lookback = 1) =>
+    count = 0
+    for i = 0 to lookback - 1
+        if source[i] < target[i]
+            count += 1
+    count == lookback
+
+// Function to calculate the moving avg
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+
+addTransparency(hexColor, transparency) =>
+    alpha = int(100 - transparency * 100)
+    r = color.r(hexColor)
+    g = color.g(hexColor)
+    b = color.b(hexColor)
+    color.rgb(r, g, b, alpha)
+
+roundToStep(value, stepSize) =>
+    stepSize * int(value / stepSize + 0.5)
+
+// https://m2.material.io/design/color/the-color-system.html#tools-for-picking-colors
+
+const color colorWhite = #FFFFFF
+const color colorBlack = #000000
+
+const color colorGray50 = #FAFAFA
+const color colorGray100 = #F5F5F5
+const color colorGray200 = #EEEEEE
+const color colorGray300 = #E0E0E0
+const color colorGray400 = #BDBDBD
+const color colorGray500 = #9E9E9E
+const color colorGray600 = #757575
+const color colorGray700 = #616161
+const color colorGray800 = #424242
+const color colorGray900 = #212121
+
+const color colorGreen50 = #E8F5E9
+const color colorGreen100 = #C8E6C9
+const color colorGreen200 = #A5D6A7
+const color colorGreen300 = #81C784
+const color colorGreen400 = #66BB6A
+const color colorGreen500 = #4CAF50
+const color colorGreen600 = #43A047
+const color colorGreen700 = #388E3C
+const color colorGreen800 = #2E7D32
+const color colorGreen900 = #1B5E20
+
+const color colorBlue50 = #E3F2FD
+const color colorBlue100 = #BBDEFB
+const color colorBlue200 = #90CAF9
+const color colorBlue300 = #64B5F6
+const color colorBlue400 = #42A5F5
+const color colorBlue500 = #2196F3
+const color colorBlue600 = #1E88E5
+const color colorBlue700 = #1976D2
+const color colorBlue800 = #1565C0
+const color colorBlue900 = #0D47A1
+
+const color colorYellow50 = #FFFDE7
+const color colorYellow100 = #FFF9C4
+const color colorYellow200 = #FFF59D
+const color colorYellow300 = #FFF176
+const color colorYellow400 = #FFEE58
+const color colorYellow500 = #FFEB3B
+const color colorYellow600 = #FDD835
+const color colorYellow700 = #FBC02D
+const color colorYellow800 = #F9A825
+const color colorYellow900 = #F57F17
+
+const color colorOrange50 = #FFF3E0
+const color colorOrange100 = #FFE0B2
+const color colorOrange200 = #FFCC80
+const color colorOrange300 = #FFB74D
+const color colorOrange400 = #FFA726
+const color colorOrange500 = #FF9800
+const color colorOrange600 = #FB8C00
+const color colorOrange700 = #F57C00
+const color colorOrange800 = #EF6C00
+const color colorOrange900 = #E65100
+
+const color colorRed50 = #FFEBEE
+const color colorRed100 = #FFCDD2
+const color colorRed200 = #EF9A9A
+const color colorRed300 = #E57373
+const color colorRed400 = #EF5350
+const color colorRed500 = #F44336
+const color colorRed600 = #E53935
+const color colorRed700 = #D32F2F
+const color colorRed800 = #C62828
+const color colorRed900 = #B71C1C
+
+
+const color colorBackgroundDark = #181a1f
+const color colorGreenSymbol = #089981
+const color colorRedSymbol = #F23645
+const color colorGreyFill = addTransparency(colorGray500, 0.5)
+const color colorGreyIndicator = colorGray500
+const color colorBlueIndicator = colorBlue500
+const color colorOrangeIndicator = colorOrange500
+const color colorGreyLine = colorGray700
+const color colorRedLabel = colorRed500
+const color colorGrayGird = addTransparency(colorGray500, 0.2)
+
+// RSI Settings
+// ================================
+const string RSI_SETTINGS = "RSI Settings"
+
+int rsiLengthInput = input.int(title="Length", defval=14, minval=1, group=RSI_SETTINGS)
+float rsiSourceInput = input.source(title="Source", defval=close, group=RSI_SETTINGS)
+string rsiMaTypeInput = input.string(title="MA Type", defval="EMA", options=["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"], display=display.data_window, group=RSI_SETTINGS)
+int rsiMaLengthInput = input.int(title="MA Length", defval=14, minval=1, group=RSI_SETTINGS)
+const int rsiOverboughtThreshold = 70
+const int rsiOversoldThreshold = 30
+
+color rsiThresholdLineColor = addTransparency(colorGray600, 0.5)
+rsiThresholdLineStyle = hline.style_solid
+rsiOverboughtLine = hline(title="RSI Overbought Line", price=rsiOverboughtThreshold, color=na, linestyle=rsiThresholdLineStyle, display=display.none, editable=false)
+rsiOversoldLine = hline(title="RSI Oversold Line", price=rsiOversoldThreshold, color=na, linestyle=rsiThresholdLineStyle, display=display.none, editable=false)
+
+float rsiUpper = ta.rma(math.max(ta.change(rsiSourceInput), 0), rsiLengthInput)
+float rsiLower = ta.rma(-math.min(ta.change(rsiSourceInput), 0), rsiLengthInput)
+float rsi = rsiLower == 0 ? 100 : rsiUpper == 0 ? 0 : 100 - (100 / (1 + rsiUpper / rsiLower))
+float rsiMa = ma(rsi, rsiMaLengthInput, rsiMaTypeInput)
+
+bool rsiCrossoverMa = ta.crossover(rsi, rsiMa)
+bool rsiCrossunderMa = ta.crossunder(rsi, rsiMa)
+
+bool isRsiOverbought = isOver(rsi, rsiOverboughtThreshold)
+bool isRsiOversold = isUnder(rsi, rsiOversoldThreshold)
+
+color rsiThresholdIndicatorColor = colorGreyIndicator
+rsiThresholdIndicatorStyle = shape.circle
+plotshape(title="RSI Threshold Indicator", series=(isRsiOverbought or isRsiOversold) ? rsi : na, color=rsiThresholdIndicatorColor, style=rsiThresholdIndicatorStyle, location=location.absolute, size=size.auto, display=display.none, editable=false)
+
+color rsiColor = colorGrayGird
+rsiStyle = plot.style_line
+rsiPlot = plot(title="RSI Plot", series=rsi, style=rsiStyle, color=rsiColor, editable=false)
+
+// KDJ Settings
+// ================================
+const string KDJ_SETTINGS = "KDJ Settings"
+
+// BTC 1W: K, 9, 2
+// BTC 1D: J, 9, 7
+// BTC 4h: K, 9, 2
+// BTC 1h: D, 9, 3
+int kPeriodInput = input.int(title="K Period", defval=9, minval=1, group=KDJ_SETTINGS) // defval=9
+int dPeriodInput = input.int(title="D Period", defval=3, minval=1, group=KDJ_SETTINGS) // defval=3
+string kdjPrimaryTypeInput = input.string(title="Primary Type", defval="K", options=["K", "D", "J"], display=display.data_window, group=KDJ_SETTINGS)
+
+bcwsma(s, l, m) =>
+    var float bcwsmaValue = na
+    _s = s
+    _l = l
+    _m = m
+    bcwsmaValue := (_m * _s + (_l - _m) * nz(bcwsmaValue[1])) / _l
+    bcwsmaValue
+
+float kdjSource = close
+float kdjHighestHigh = ta.highest(high, kPeriodInput)
+float kdjLowestLow = ta.lowest(low, kPeriodInput)
+
+float kdjRsv = 100 * ((kdjSource - kdjLowestLow) / (kdjHighestHigh - kdjLowestLow))
+float kValue = bcwsma(kdjRsv, dPeriodInput, 1)
+float dValue = bcwsma(kValue, dPeriodInput, 1)
+float jValue = 3 * kValue - 2 * dValue
+
+float kdjValue = switch kdjPrimaryTypeInput
+    "K" => kValue
+    "D" => dValue
+    "J" => jValue
+int kdjOverboughtThreshold = switch kdjPrimaryTypeInput
+    "K" => 80
+    "D" => 80
+    "J" => 100
+int kdjOversoldThreshold = switch kdjPrimaryTypeInput
+    "K" => 20
+    "D" => 20
+    "J" => 0
+
+color kdjThresholdLineColor = addTransparency(colorGray600, 0.5)
+kdjThresholdLineStyle = hline.style_solid
+kdjOverboughtLine = hline(title="KDJ Overbought Line", price=kdjOverboughtThreshold, color=kdjThresholdLineColor, linestyle=kdjThresholdLineStyle, display=display.none, editable=false)
+kdjOversoldLine = hline(title="KDJ Oversold Line", price=kdjOversoldThreshold, color=kdjThresholdLineColor, linestyle=kdjThresholdLineStyle, display=display.none, editable=false)
+
+bool kCrossoverD = ta.crossover(kValue, dValue)
+bool kCrossunderD = ta.crossunder(kValue, dValue)
+
+bool isKdjOverbought = switch kdjPrimaryTypeInput
+    "K" => isOver(kValue, kdjOverboughtThreshold)
+    "D" => isOver(dValue, kdjOverboughtThreshold)
+    "J" => isOver(jValue, kdjOverboughtThreshold)
+bool isKdjOversold = switch kdjPrimaryTypeInput
+    "K" => isUnder(kValue, kdjOversoldThreshold)
+    "D" => isUnder(dValue, kdjOversoldThreshold)
+    "J" => isUnder(jValue, kdjOversoldThreshold)
+
+color kdjThresholdIndicatorColor = colorGreyIndicator
+kdjThresholdIndicatorStyle = shape.circle
+plotshape(title="KDJ Threshold Indicator", series=(isKdjOverbought or isKdjOversold) ? kdjValue : na, color=kdjThresholdIndicatorColor, style=kdjThresholdIndicatorStyle, location=location.absolute, size=size.auto, display=display.none, editable=false)
+
+// long color, short color, default color
+color kdjColor = colorGrayGird
+kdjStyle = plot.style_line
+kdjPlot = plot(title="KDJ Plot", series=kdjValue, style=kdjStyle, color=kdjColor, editable=false)
+
+// RSI KDJ Settings
+// ================================
+const string RSI_KDJ_SETTINGS = "RSI KDJ Settings"
+
+float rsiWeightInput = input.float(title="RSI Weight", defval=1, minval=0, step=0.1, group=RSI_KDJ_SETTINGS)
+float kdjWeightInput = input.float(title="KDJ Weight", defval=1, minval=0, step=0.1, group=RSI_KDJ_SETTINGS)
+
+int rsiKdjOverboughtThresholdInput = input.int(title="Overbought Threshold", defval=70, minval=1, group=RSI_KDJ_SETTINGS)
+int rsiKdjOversoldThresholdInput = input.int(title="Oversold Threshold", defval=30, minval=1, group=RSI_KDJ_SETTINGS)
+int rsiKdjOverboughtThreshold2Input = input.int(title="Overbought Threshold 2", defval=80, minval=1, group=RSI_KDJ_SETTINGS)
+int rsiKdjOversoldThreshold2Input = input.int(title="Oversold Threshold 2", defval=20, minval=1, group=RSI_KDJ_SETTINGS)
+
+int rsiKdjDivergenceLookbackLeftInput = input.int(title="Divergence Lookback Left", defval=21, minval=1, group=RSI_KDJ_SETTINGS)
+int rsiKdjDivergenceLookbackRightInput = input.int(title="Divergence Lookback Right", defval=21, minval=1, group=RSI_KDJ_SETTINGS)
+int rsiKdjDivergenceLookbakRangeMax = input.int(title="Max of Lookback Range", defval=55, minval=1, display=display.data_window)
+int rsiKdjDivergenceLookbakRangeMin = input.int(title="Min of Lookback Range", defval=1, minval=1, display=display.data_window)
+
+color rsiKdjThresholdPlotColor = colorGrayGird
+rsiKdjThresholdPlotStyle = plot.style_stepline
+rsiKdjOverboughtPlot = plot(title="RSI KDJ Overbought Plot", series=rsiKdjOverboughtThresholdInput, color=rsiKdjThresholdPlotColor, style=rsiKdjThresholdPlotStyle, editable=false)
+rsiKdjOversoldPlot = plot(title="RSI KDJ Oversold Plot", series=rsiKdjOversoldThresholdInput, color=rsiKdjThresholdPlotColor, style=rsiKdjThresholdPlotStyle, editable=false)
+
+float rsiKdj = (rsi * rsiWeightInput + kdjValue * kdjWeightInput) / (rsiWeightInput + kdjWeightInput)
+
+bool isRsiKdjOverbought = isOver(rsiKdj, rsiKdjOverboughtThresholdInput)
+bool isRsiKdjOversold = isUnder(rsiKdj, rsiKdjOversoldThresholdInput)
+bool isRsiKdjOverbought2 = isOver(rsiKdj, rsiKdjOverboughtThreshold2Input)
+bool isRsiKdjOversold2 = isUnder(rsiKdj, rsiKdjOversoldThreshold2Input)
+
+color colorRsiKdjOverbought = colorRedSymbol
+color colorRsiKdjOversold = colorGreenSymbol
+color colorRsiKdjOverbought2 = colorRedSymbol
+color colorRsiKdjOversold2 = colorGreenSymbol
+plotshape(title="RSI KDJ Overbought", series=isRsiKdjOverbought and not isRsiKdjOverbought2 ? rsiKdj : na, color=colorRsiKdjOverbought, style=shape.triangledown, location=location.top, size=size.auto)
+plotshape(title="RSI KDJ Oversold", series=isRsiKdjOversold and not isRsiKdjOversold2 ? rsiKdj : na, color=colorRsiKdjOversold, style=shape.triangleup, location=location.bottom, size=size.auto)
+plotshape(title="RSI KDJ Overbought 2", series=isRsiKdjOverbought2 ? rsiKdj : na, color=colorRsiKdjOverbought2, style=shape.triangledown, location=location.top, size=size.auto)
+plotshape(title="RSI KDJ Oversold 2", series=isRsiKdjOversold2 ? rsiKdj : na, color=colorRsiKdjOversold2, style=shape.triangleup, location=location.bottom, size=size.auto)
+
+bool rsiKdjPriceHighFound = na(ta.pivothigh(rsiKdj, rsiKdjDivergenceLookbackLeftInput, rsiKdjDivergenceLookbackRightInput)) ? false : true
+bool rsiKdjPriceLowFound = na(ta.pivotlow(rsiKdj, rsiKdjDivergenceLookbackLeftInput, rsiKdjDivergenceLookbackRightInput)) ? false : true
+
+_isRsiKdjDivergence(condition) =>
+	int bars = ta.barssince(condition == true)
+	rsiKdjDivergenceLookbakRangeMin <= bars and bars <= rsiKdjDivergenceLookbakRangeMax
+
+color rsiKdjDivergenceBullishColor = colorGreyIndicator
+bool rsiKdjDivergencePriceHigherLow = rsiKdj[rsiKdjDivergenceLookbackRightInput] > ta.valuewhen(rsiKdjPriceLowFound, rsiKdj[rsiKdjDivergenceLookbackRightInput], 1) and _isRsiKdjDivergence(rsiKdjPriceLowFound[1])
+bool rsiKdjDivergencePriceLowerLow = low[rsiKdjDivergenceLookbackRightInput] < ta.valuewhen(rsiKdjPriceLowFound, low[rsiKdjDivergenceLookbackRightInput], 1)
+bool rsiKdjDivergenceBullishFound = rsiKdjDivergencePriceLowerLow and rsiKdjDivergencePriceHigherLow and rsiKdjPriceLowFound
+plot(title="RSI KDJ Bullish Divergence Plot", series=rsiKdjPriceLowFound ? rsiKdj[rsiKdjDivergenceLookbackRightInput] : na, offset=-rsiKdjDivergenceLookbackRightInput, color=rsiKdjDivergenceBullishFound ? rsiKdjDivergenceBullishColor : na)
+
+color rsiKdjDivergenceBearishColor = colorGreyIndicator
+bool rsiKdjDivergencePriceLowerHigh = rsiKdj[rsiKdjDivergenceLookbackRightInput] < ta.valuewhen(rsiKdjPriceHighFound, rsiKdj[rsiKdjDivergenceLookbackRightInput], 1) and _isRsiKdjDivergence(rsiKdjPriceHighFound[1])
+bool rsiKdjDivergencePriceHigherHigh = high[rsiKdjDivergenceLookbackRightInput] > ta.valuewhen(rsiKdjPriceHighFound, high[rsiKdjDivergenceLookbackRightInput], 1)
+bool rsiKdjDivergenceBearishFound = rsiKdjDivergencePriceHigherHigh and rsiKdjDivergencePriceLowerHigh and rsiKdjPriceHighFound
+plot(title="RSI KDJ Bearish Divergence Plot", series=rsiKdjPriceHighFound ? rsiKdj[rsiKdjDivergenceLookbackRightInput] : na, offset=-rsiKdjDivergenceLookbackRightInput, color=rsiKdjDivergenceBearishFound ? rsiKdjDivergenceBearishColor : na)
+
+// // MACD Settings
+// // ================================
+const string MACD_SETTINGS = "MACD Settings"
+
+float macdSourceInput = input.source(title="Source", defval=close, group=MACD_SETTINGS)
+string macdMaTypeInput = input.string(title="MA Type", defval="EMA", options=["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"], display=display.data_window, group=MACD_SETTINGS)
+int macdFastLengthInput = input.int(title="Fast Length", defval=12, group=MACD_SETTINGS)
+int macdSlowLengthInput = input.int(title="Slow Length", defval=26, group=MACD_SETTINGS)
+int macdSignalLengthInput = input.int(title="Signal Length", defval=9, minval=1, maxval=50, group=MACD_SETTINGS)
+
+float macdFastMa = ma(macdSourceInput, macdFastLengthInput, macdMaTypeInput)
+float macdSlowMa = ma(macdSourceInput, macdSlowLengthInput, macdMaTypeInput)
+float macd = macdFastMa - macdSlowMa
+float macdSignalMa = ma(macd, macdSignalLengthInput, macdMaTypeInput) 
+
+bool macdCrossoverSignal = ta.crossover(macd, macdSignalMa)
+bool macdCrossunderSignal = ta.crossunder(macd, macdSignalMa)
+
+color macdCrossIndicatorColor = macdCrossoverSignal ? colorGreenSymbol : macdCrossunderSignal ? colorRedSymbol : na
+macdCrossIndicatorStyle = shape.xcross
+plotshape(title="MACD Cross Indicator", series=(macdCrossoverSignal or macdCrossunderSignal) ? rsiKdj : na, color=macdCrossIndicatorColor, style=macdCrossIndicatorStyle, location=location.absolute, size=size.auto)
+
+// Strategy
+// ================================
+const string STRATEGY_SETTINGS = "Strategy Settings"
+
+int strategyEntryLookbackInput = input.int(title="Entry lookback", defval=1, minval=1, group=STRATEGY_SETTINGS)
+int strategyCloseLookbackInput = input.int(title="Close lookback", defval=1, minval=1, group=STRATEGY_SETTINGS)
+
+int rsiOverMaBarsEntry = barsOver(rsi, rsiMa, strategyEntryLookbackInput)
+int rsiUnderMaBarsEntry = barsUnder(rsi, rsiMa, strategyEntryLookbackInput)
+bool allRsiOverMaEntry = rsiOverMaBarsEntry == strategyEntryLookbackInput
+bool allRsiUnderMaEntry = rsiUnderMaBarsEntry == strategyEntryLookbackInput
+bool hasRsiOverMaEntry = rsiOverMaBarsEntry > 0
+bool hasRsiUnderMaEntry = rsiUnderMaBarsEntry > 0
+
+int rsiOverMaBarsClose = barsOver(rsi, rsiMa, strategyCloseLookbackInput)
+int rsiUnderMaBarsClose = barsUnder(rsi, rsiMa, strategyCloseLookbackInput)
+bool allRsiOverMaClose = rsiOverMaBarsClose == strategyCloseLookbackInput
+bool allRsiUnderMaClose = rsiUnderMaBarsClose == strategyCloseLookbackInput
+bool hasRsiOverMaClose = rsiOverMaBarsClose > 0
+bool hasRsiUnderMaClose = rsiUnderMaBarsClose > 0
+
+int kOverDBarsEntry = barsOver(kValue, dValue, strategyEntryLookbackInput)
+int kUnderkBarsEntry = barsUnder(kValue, dValue, strategyEntryLookbackInput)
+bool allKOverDEntry = kOverDBarsEntry == strategyEntryLookbackInput
+bool allKUnderDEntry = kUnderkBarsEntry == strategyEntryLookbackInput
+bool hasKOverDEntry = kOverDBarsEntry > 0
+bool hasKUnderDEntry = kUnderkBarsEntry > 0
+
+int kOverDBarsClose = barsOver(kValue, dValue, strategyCloseLookbackInput)
+int kUnderDBarsClose = barsUnder(kValue, dValue, strategyCloseLookbackInput)
+bool allKOverDClose = kOverDBarsClose == strategyCloseLookbackInput
+bool allKUnderDClose = kUnderDBarsClose == strategyCloseLookbackInput
+bool hasKOverDClose = kOverDBarsClose > 0
+bool hasKUnderDClose = kUnderDBarsClose > 0
+
+var bool isRsiLongSession = false
+var bool isRsiShortSession = false
+
+bool longRsiEntry = (hasRsiOverMaEntry) and (allRsiOverMaEntry)
+bool longRsiClose = allRsiUnderMaClose
+
+bool shortRsiEntry = (hasRsiUnderMaEntry) and (allRsiUnderMaEntry)
+bool shortRsiClose = allRsiOverMaClose
+
+if (longRsiEntry)
+	isRsiLongSession := true
+	isRsiShortSession := false
+if (longRsiClose)
+	isRsiLongSession := false
+
+if (shortRsiEntry)
+	isRsiShortSession := true
+	isRsiLongSession := false
+if (shortRsiClose)
+	isRsiShortSession := false
+
+var bool isKdjLongSession = false
+var bool isKdjShortSession = false
+
+bool longKdjEntry = (hasKOverDEntry) and (allKOverDEntry)
+bool longKdjClose = allKUnderDClose
+
+bool shortKdjEntry = (hasKUnderDEntry) and (allKUnderDEntry)
+bool shortKdjClose = allKOverDClose
+
+if (longKdjEntry)
+	isKdjLongSession := true
+	isKdjShortSession := false
+if (longKdjClose)
+	isKdjLongSession := false
+
+if (shortKdjEntry)
+	isKdjShortSession := true
+	isKdjLongSession := false
+if (shortKdjClose)
+	isKdjShortSession := false
+
+bool isLongSession = isRsiLongSession and isKdjLongSession
+bool isShortSession = isRsiShortSession and isKdjShortSession
+color sessionColor = isLongSession ? colorGreenSymbol : isShortSession ? colorRedSymbol : colorGray600
+sessionStyle = plot.style_stepline
+plot(title="Session Plot", series=rsiKdj, style=sessionStyle, color=sessionColor)
+
+bool isOverboughtHighlight = isRsiOverbought and isKdjOverbought and isRsiKdjOverbought2
+bool isOversoldHighlight = isRsiOversold and isKdjOversold and isRsiKdjOversold2
+
+sessionThresholdColor = (isOverboughtHighlight or isOversoldHighlight) ? colorGreyFill : na
+fill(title="Session Threshold highlight", plot1=rsiKdjOverboughtPlot, plot2=rsiKdjOversoldPlot, color=sessionThresholdColor)
+
+// ================================
